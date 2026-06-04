@@ -82,11 +82,11 @@ export function createOrder(input: Omit<DeskOrder, "id" | "createdAt" | "inr" | 
 }
 
 export function money(value: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
+  const amount = new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value || 0);
+  return `\u20B9${amount}`;
 }
 
 export function usdt(value: number): string {
