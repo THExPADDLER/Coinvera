@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, limit, orderBy, query, setDoc } from "firebase/firestore";
+import { get, ref, set } from "firebase/database";
 import { getFirebaseServices } from "./firebase";
 import type { AdminActivityLog, CustomerUser, DeskOrder, DeskSettings } from "./types";
 
@@ -16,22 +16,30 @@ function safeLocalSet(key: string, value: unknown) {
   }
 }
 
+function objectValues<T>(value: unknown): T[] {
+  if (!value || typeof value !== "object") return [];
+  return Object.values(value as Record<string, T>);
+}
+
 export async function syncFirebaseToLocal(): Promise<void> {
   const services = getFirebaseServices();
   if (!services) return;
 
   try {
-    const [orderSnap, userSnap, logSnap, settingsSnap] = await Promise.all([
-      getDocs(query(collection(services.db, root, "orders", "items"), orderBy("createdAt", "desc"), limit(500))),
-      getDocs(query(collection(services.db, root, "users", "items"), orderBy("lastLoginAt", "desc"), limit(500))),
-      getDocs(query(collection(services.db, root, "activityLogs", "items"), orderBy("at", "desc"), limit(300))),
-      getDocs(query(collection(services.db, root, "settings", "items"), limit(1)))
-    ]);
+    const snapshot = await get(ref(services.db, root));
+    const data = snapshot.val() as {
+      activityLogs?: Record<string, AdminActivityLog>;
+      orders?: Record<string, DeskOrder>;
+      settings?: { main?: DeskSettings };
+      users?: Record<string, CustomerUser>;
+    } | null;
 
-    const orders = orderSnap.docs.map((item) => item.data() as DeskOrder);
-    const users = userSnap.docs.map((item) => item.data() as CustomerUser);
-    const logs = logSnap.docs.map((item) => item.data() as AdminActivityLog);
-    const settings = settingsSnap.docs[0]?.data() as DeskSettings | undefined;
+    if (!data) return;
+
+    const orders = objectValues<DeskOrder>(data.orders).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const users = objectValues<CustomerUser>(data.users).sort((a, b) => new Date(b.lastLoginAt).getTime() - new Date(a.lastLoginAt).getTime());
+    const logs = objectValues<AdminActivityLog>(data.activityLogs).sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+    const settings = data.settings?.main;
 
     if (orders.length) safeLocalSet(storageKey, orders);
     if (users.length) safeLocalSet(usersStorageKey, users);
@@ -50,23 +58,23 @@ export async function syncFirebaseToLocal(): Promise<void> {
 export async function saveOrdersToFirebase(orders: DeskOrder[]): Promise<void> {
   const services = getFirebaseServices();
   if (!services) return;
-  await Promise.all(orders.map((order) => setDoc(doc(services.db, root, "orders", "items", order.id), order, { merge: true })));
+  await Promise.all(orders.map((order) => set(ref(services.db, `${root}/orders/${order.id}`), order)));
 }
 
 export async function saveSettingsToFirebase(settings: DeskSettings): Promise<void> {
   const services = getFirebaseServices();
   if (!services) return;
-  await setDoc(doc(services.db, root, "settings", "items", "main"), settings, { merge: true });
+  await set(ref(services.db, `${root}/settings/main`), settings);
 }
 
 export async function saveUsersToFirebase(users: CustomerUser[]): Promise<void> {
   const services = getFirebaseServices();
   if (!services) return;
-  await Promise.all(users.map((user) => setDoc(doc(services.db, root, "users", "items", user.id), user, { merge: true })));
+  await Promise.all(users.map((user) => set(ref(services.db, `${root}/users/${user.id}`), user)));
 }
 
 export async function saveActivityLogsToFirebase(logs: AdminActivityLog[]): Promise<void> {
   const services = getFirebaseServices();
   if (!services) return;
-  await Promise.all(logs.map((log) => setDoc(doc(services.db, root, "activityLogs", "items", log.id), log, { merge: true })));
+  await Promise.all(logs.map((log) => set(ref(services.db, `${root}/activityLogs/${log.id}`), log)));
 }
