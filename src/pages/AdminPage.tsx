@@ -49,7 +49,7 @@ export function AdminPage() {
   const [logs, setLogs] = useState<AdminActivityLog[]>([]);
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
-  const [cropTarget, setCropTarget] = useState<{ file: File; type: "upi" | "chain"; index?: number } | null>(null);
+  const [cropTarget, setCropTarget] = useState<{ draft: DeskSettings; file: File; type: "upi" | "chain"; index?: number } | null>(null);
   const [previewProof, setPreviewProof] = useState<{ src: string; alt: string } | null>(null);
   const [activeSection, setActiveSection] = useState<AdminSection>("home");
   const permissions = adminUser ? rolePermissions[adminUser.role] : rolePermissions.viewer;
@@ -418,12 +418,13 @@ export function AdminPage() {
           file={cropTarget.file}
           onCancel={() => setCropTarget(null)}
           onSave={(dataUrl) => {
+            const cropDraft = cropTarget.draft;
             if (cropTarget.type === "upi") {
-              updateSettings({ ...settings, payment: { ...settings.payment, upiQr: dataUrl } });
+              updateSettings({ ...cropDraft, payment: { ...cropDraft.payment, upiQr: dataUrl } });
             } else if (typeof cropTarget.index === "number") {
               updateSettings({
-                ...settings,
-                blockchains: settings.blockchains.map((chain, index) => (index === cropTarget.index ? { ...chain, qr: dataUrl } : chain))
+                ...cropDraft,
+                blockchains: cropDraft.blockchains.map((chain, index) => (index === cropTarget.index ? { ...chain, qr: dataUrl } : chain))
               });
             }
             setCropTarget(null);
@@ -585,7 +586,7 @@ function AdminSettings({
   onSave,
   settings
 }: {
-  onCropRequest: (target: { file: File; type: "upi" | "chain"; index?: number }) => void;
+  onCropRequest: (target: { draft: DeskSettings; file: File; type: "upi" | "chain"; index?: number }) => void;
   onSave: (settings: DeskSettings) => void;
   settings: DeskSettings;
 }) {
@@ -691,7 +692,7 @@ function AdminSettings({
         </label>
         <label className="wide">
           Upload UPI QR barcode
-          <input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && onCropRequest({ file: event.target.files[0], type: "upi" })} />
+          <input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && onCropRequest({ draft, file: event.target.files[0], type: "upi" })} />
         </label>
         <div className="chainManager">
           <div className="chainManagerHead">
@@ -710,7 +711,7 @@ function AdminSettings({
               </label>
               <label>
                 Upload QR
-                <input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && onCropRequest({ file: event.target.files[0], type: "chain", index })} />
+                <input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && onCropRequest({ draft, file: event.target.files[0], type: "chain", index })} />
               </label>
               <button type="button" onClick={() => removeBlockchain(index)} disabled={draft.blockchains.length <= 1}>Remove</button>
             </div>
