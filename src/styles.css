@@ -89,33 +89,49 @@ button {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   font-weight: 900;
 }
 
 .brandMark {
-  width: 74px;
-  height: 74px;
+  width: 68px;
+  height: 68px;
   display: grid;
   place-items: center;
-  border-radius: 20px;
-  color: #053b32;
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  color: #f8fffc;
   background:
-    radial-gradient(circle at 35% 25%, #ffffff, #e8fff7 58%, #bff3e7),
-    #f3fff9;
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 34%),
+    linear-gradient(145deg, #0fbf98 0%, #075e53 48%, #102d45 100%);
   box-shadow:
-    0 14px 34px rgba(0, 0, 0, 0.18),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.82);
+    0 18px 42px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
 
-.brandMark svg {
-  width: 38px;
-  height: 38px;
+.brandMark::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 14px;
+}
+
+.brandMark span {
+  position: relative;
+  z-index: 1;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 950;
+  font-family: "Segoe UI", "Noto Sans", Arial, sans-serif;
 }
 
 .brandDark .brandMark {
   color: #fff;
-  background: linear-gradient(145deg, var(--teal), var(--blue));
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 36%),
+    linear-gradient(145deg, var(--teal), var(--blue));
 }
 
 .brandText {
@@ -124,26 +140,32 @@ button {
 }
 
 .brandName {
-  display: block;
-  font-size: clamp(42px, 4.2vw, 58px);
-  line-height: 0.88;
+  display: flex;
+  align-items: baseline;
+  font-size: clamp(38px, 3.7vw, 52px);
+  line-height: 0.9;
   color: #fff;
-  font-weight: 950;
+  font-weight: 920;
   text-shadow: 0 8px 28px rgba(0, 0, 0, 0.24);
+}
+
+.brandName span:last-child {
+  color: rgba(255, 255, 255, 0.86);
+  font-weight: 780;
 }
 
 .brandTagline {
   width: fit-content;
-  min-height: 30px;
+  min-height: 28px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 14px;
-  border-radius: 999px;
+  gap: 7px;
+  padding: 0 12px;
+  border-radius: 8px;
   color: rgba(255, 255, 255, 0.9);
-  background: rgba(6, 20, 18, 0.58);
+  background: rgba(6, 20, 18, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.22);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -151,6 +173,10 @@ button {
 .brandDark .brandName {
   color: var(--ink);
   text-shadow: none;
+}
+
+.brandDark .brandName span:last-child {
+  color: #4c625c;
 }
 
 .brandDark .brandTagline {
@@ -2206,22 +2232,21 @@ tbody tr:last-child td {
   }
 
   .brand {
-    gap: 14px;
+    gap: 13px;
   }
 
   .brandMark {
-    width: 62px;
-    height: 62px;
+    width: 58px;
+    height: 58px;
     border-radius: 16px;
   }
 
-  .brandMark svg {
-    width: 32px;
-    height: 32px;
+  .brandMark span {
+    font-size: 19px;
   }
 
   .brandName {
-    font-size: 36px;
+    font-size: 34px;
   }
 
   .marketDashboard,
@@ -2328,12 +2353,12 @@ tbody tr:last-child td {
   }
 
   .brandMark {
-    width: 52px;
-    height: 52px;
+    width: 50px;
+    height: 50px;
   }
 
   .brandName {
-    font-size: 29px;
+    font-size: 28px;
   }
 
   .brandTagline {
