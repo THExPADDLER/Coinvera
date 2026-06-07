@@ -694,6 +694,7 @@ function AdminSettings({
           Upload UPI QR barcode
           <input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && onCropRequest({ draft, file: event.target.files[0], type: "upi" })} />
         </label>
+        <button className="primaryButton compact settingsSaveButton" type="button" onClick={() => onSave(draft)}>Save UPI & Rates</button>
         <div className="chainManager">
           <div className="chainManagerHead">
             <strong>Seller Blockchain Deposit Wallets</strong>
@@ -713,6 +714,7 @@ function AdminSettings({
                 Upload QR
                 <input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && onCropRequest({ draft, file: event.target.files[0], type: "chain", index })} />
               </label>
+              <button className="primaryButton compact" type="button" onClick={() => onSave(draft)}>Save Blockchain</button>
               <button type="button" onClick={() => removeBlockchain(index)} disabled={draft.blockchains.length <= 1}>Remove</button>
             </div>
           ))}
@@ -724,6 +726,7 @@ function AdminSettings({
           onAdd={addAccountTransfer}
           onRemove={removeAccountTransfer}
           onChange={setAccountTransfer}
+          onSave={() => onSave(draft)}
         />
         <BankOptionManager
           title="CDM Cash Deposit Options"
@@ -732,6 +735,7 @@ function AdminSettings({
           onAdd={addCdmAccount}
           onRemove={removeCdmAccount}
           onChange={setCdmAccount}
+          onSave={() => onSave(draft)}
         />
       </div>
     </section>
@@ -743,6 +747,7 @@ function BankOptionManager({
   onAdd,
   onChange,
   onRemove,
+  onSave,
   options,
   title
 }: {
@@ -750,6 +755,7 @@ function BankOptionManager({
   onAdd: () => void;
   onChange: (index: number, patch: Partial<BankAccountOption>) => void;
   onRemove: (index: number) => void;
+  onSave: () => void;
   options: BankAccountOption[];
   title: string;
 }) {
@@ -781,6 +787,7 @@ function BankOptionManager({
             Bank name
             <input value={option.bankName} onChange={(event) => onChange(index, { bankName: event.target.value })} placeholder="Bank name" />
           </label>
+          <button className="primaryButton compact" type="button" onClick={onSave}>Save Details</button>
           <button type="button" onClick={() => onRemove(index)} disabled={options.length <= 1}>Remove</button>
         </div>
       ))}
