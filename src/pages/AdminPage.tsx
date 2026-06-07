@@ -192,11 +192,12 @@ export function AdminPage() {
       setToast("This role cannot edit website settings");
       return;
     }
+    const changes = describeSettingsChanges(settings, next);
     setSettings(saveDeskSettings(next));
     if (adminUser) {
-      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Updated website rates/payment settings" }));
+      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: changes[0] ? `Updated settings: ${changes[0]}` : "Saved website rates/payment settings without visible changes", detail: changes.slice(1).join(" | ") }));
     }
-    setToast("Website rates and payment details updated");
+    setToast(changes.length ? "Website settings updated and logged" : "Settings saved");
   }
 
   return (
@@ -420,6 +421,7 @@ export function AdminPage() {
                       <span>{log.staffName} · {log.role}</span>
                     </div>
                     <p>{log.action}</p>
+                    {log.detail && <small>{log.detail}</small>}
                     <span>{log.orderId || "System"} · {new Date(log.at).toLocaleString("en-IN")}</span>
                   </article>
                 ))}
@@ -505,6 +507,89 @@ function SectionBack({ activeSection, onBack }: { activeSection: AdminSection; o
       <strong>{titles[activeSection]}</strong>
     </section>
   );
+}
+
+function describeSettingsChanges(previous: DeskSettings, next: DeskSettings): string[] {
+  const changes: string[] = [];
+  const addChange = (label: string, before: string | number, after: string | number) => {
+    if (String(before) !== String(after)) {
+      changes.push(`${label} changed from ${formatLogValue(before)} to ${formatLogValue(after)}`);
+    }
+  };
+  const addImageChange = (label: string, before?: string, after?: string) => {
+    if ((before || "") !== (after || "")) {
+      changes.push(`${label} changed from ${before ? "uploaded image" : "not uploaded"} to ${after ? "uploaded image" : "not uploaded"}`);
+    }
+  };
+
+  addChange("Buy price per USDT", money(previous.rates.buy), money(next.rates.buy));
+  addChange("Sell price per USDT", money(previous.rates.sell), money(next.rates.sell));
+  addChange("UPI holder name", previous.payment.holderName, next.payment.holderName);
+  addChange("UPI ID", previous.payment.upiId, next.payment.upiId);
+  addImageChange("UPI QR barcode", previous.payment.upiQr, next.payment.upiQr);
+
+  compareBlockchainChanges("Blockchain", previous.blockchains, next.blockchains, changes);
+  compareBankOptionChanges("Account transfer", previous.accountTransfers, next.accountTransfers, changes);
+  compareBankOptionChanges("CDM account", previous.cdmAccounts, next.cdmAccounts, changes);
+
+  return changes;
+}
+
+function compareBlockchainChanges(label: string, previous: BlockchainDeposit[], next: BlockchainDeposit[], changes: string[]) {
+  const count = Math.max(previous.length, next.length);
+  for (let index = 0; index < count; index += 1) {
+    const before = previous[index];
+    const after = next[index];
+    const itemLabel = `${label} ${index + 1}`;
+    if (!before && after) {
+      changes.push(`${itemLabel} added as ${formatLogValue(after.name)}`);
+      continue;
+    }
+    if (before && !after) {
+      changes.push(`${itemLabel} removed from ${formatLogValue(before.name)}`);
+      continue;
+    }
+    if (!before || !after) continue;
+    pushFieldChange(changes, `${itemLabel} name`, before.name, after.name);
+    pushFieldChange(changes, `${itemLabel} wallet`, before.wallet, after.wallet);
+    if ((before.qr || "") !== (after.qr || "")) {
+      changes.push(`${itemLabel} QR changed from ${before.qr ? "uploaded image" : "not uploaded"} to ${after.qr ? "uploaded image" : "not uploaded"}`);
+    }
+  }
+}
+
+function compareBankOptionChanges(label: string, previous: BankAccountOption[], next: BankAccountOption[], changes: string[]) {
+  const count = Math.max(previous.length, next.length);
+  for (let index = 0; index < count; index += 1) {
+    const before = previous[index];
+    const after = next[index];
+    const itemLabel = `${label} ${index + 1}`;
+    if (!before && after) {
+      changes.push(`${itemLabel} added as ${formatLogValue(after.label)}`);
+      continue;
+    }
+    if (before && !after) {
+      changes.push(`${itemLabel} removed from ${formatLogValue(before.label)}`);
+      continue;
+    }
+    if (!before || !after) continue;
+    pushFieldChange(changes, `${itemLabel} label`, before.label, after.label);
+    pushFieldChange(changes, `${itemLabel} account name`, before.accountName, after.accountName);
+    pushFieldChange(changes, `${itemLabel} account number`, before.accountNumber, after.accountNumber);
+    pushFieldChange(changes, `${itemLabel} IFSC`, before.ifsc, after.ifsc);
+    pushFieldChange(changes, `${itemLabel} bank name`, before.bankName, after.bankName);
+  }
+}
+
+function pushFieldChange(changes: string[], label: string, before: string, after: string) {
+  if ((before || "") !== (after || "")) {
+    changes.push(`${label} changed from ${formatLogValue(before)} to ${formatLogValue(after)}`);
+  }
+}
+
+function formatLogValue(value: string | number): string {
+  const text = String(value || "blank").trim() || "blank";
+  return text.length > 90 ? `${text.slice(0, 87)}...` : text;
 }
 
 function CustomerUsersSection({
