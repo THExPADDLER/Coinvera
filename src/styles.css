@@ -89,8 +89,36 @@ button {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 16px;
+  gap: 0;
   font-weight: 900;
+}
+
+.coinveraWordmark {
+  width: clamp(250px, 25vw, 392px);
+  height: auto;
+  display: block;
+  overflow: visible;
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.22));
+}
+
+.wordmarkGreen {
+  fill: #00d395;
+}
+
+.wordmarkWhite,
+.wordmarkBars {
+  fill: #ffffff;
+}
+
+.brandDark .wordmarkWhite,
+.brandDark .wordmarkBars {
+  fill: var(--ink);
+}
+
+.brandDark .coinveraWordmark {
+  filter: none;
 }
 
 .brandMark {
@@ -2461,7 +2489,11 @@ tbody tr:last-child td {
   }
 
   .brand {
-    gap: 13px;
+    gap: 0;
+  }
+
+  .coinveraWordmark {
+    width: clamp(210px, 42vw, 310px);
   }
 
   .brandMark {
@@ -2584,7 +2616,11 @@ tbody tr:last-child td {
 
 @media (max-width: 430px) {
   .brand {
-    gap: 12px;
+    gap: 0;
+  }
+
+  .coinveraWordmark {
+    width: min(220px, 58vw);
   }
 
   .brandMark {
