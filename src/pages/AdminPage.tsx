@@ -683,6 +683,17 @@ function CustomerUsersSection({
   );
 }
 
+const blockchainNetworkOptions = [
+  "USDT TRC20",
+  "USDT BEP20 / BSC",
+  "USDT ERC20",
+  "USDT Polygon",
+  "USDT Solana",
+  "USDT Arbitrum",
+  "USDT Optimism",
+  "USDT TON"
+];
+
 function AdminSettings({
   onCropRequest,
   onSave,
@@ -805,7 +816,19 @@ function AdminSettings({
           {draft.blockchains.map((chain, index) => (
             <div className="chainCard" key={chain.id}>
               <label>
-                Blockchain name
+                Select network
+                <select
+                  value={blockchainNetworkOptions.includes(chain.name) ? chain.name : "custom"}
+                  onChange={(event) => setBlockchain(index, { name: event.target.value === "custom" ? "" : event.target.value })}
+                >
+                  {blockchainNetworkOptions.map((network) => (
+                    <option value={network} key={network}>{network}</option>
+                  ))}
+                  <option value="custom">Custom network</option>
+                </select>
+              </label>
+              <label>
+                Display name
                 <input value={chain.name} onChange={(event) => setBlockchain(index, { name: event.target.value })} placeholder="Example: USDT TRC20" />
               </label>
               <label>
