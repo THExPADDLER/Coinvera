@@ -149,7 +149,7 @@ export function money(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value || 0);
-  return `\u20B9${amount}`;
+  return `Rs.${amount}`;
 }
 
 export function usdt(value: number): string {
