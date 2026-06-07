@@ -41,9 +41,9 @@ export function BuyPage() {
       paymentScreenshot: screenshot,
       status: "Processing"
     });
-    setToast(`${order.id} submitted. Redirecting to My Orders.`);
+    setToast(`${order.id} submitted. Opening order chat.`);
     window.setTimeout(() => {
-      window.location.href = "/orders";
+      window.location.href = `/chat/${order.id}`;
     }, 900);
   }
 

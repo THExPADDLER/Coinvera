@@ -54,7 +54,7 @@ export function OrdersPage() {
             </div>
           ) : (
             orders.map((order) => (
-              <article className="orderCard" key={order.id}>
+              <a className="orderCard" href={`/chat/${order.id}`} key={order.id}>
                 <div>
                   <strong>{order.id}</strong>
                   <span>{new Date(order.createdAt).toLocaleString("en-IN")}</span>
@@ -63,7 +63,7 @@ export function OrdersPage() {
                 <p>{order.mode === "buy" ? "Buy" : "Sell"} {usdt(order.amount)} at {money(order.rate)}</p>
                 <h3>{money(order.inr)}</h3>
                 <small>{order.paymentMethod ? `${order.paymentMethod.toUpperCase()} ref: ${order.paymentReference || "Pending"}` : order.payment}</small>
-              </article>
+              </a>
             ))
           )}
         </div>

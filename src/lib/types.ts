@@ -32,6 +32,19 @@ export interface DeskOrder {
   paymentReference?: string;
   paymentScreenshot?: string;
   customerMobile?: string;
+  expiresAt?: string;
+  adminProof?: string;
+  customerConfirmed?: boolean;
+  adminConfirmed?: boolean;
+  chat?: OrderChatMessage[];
+}
+
+export interface OrderChatMessage {
+  id: string;
+  at: string;
+  sender: "customer" | "admin" | "system";
+  text: string;
+  attachment?: string;
 }
 
 export interface DeskRates {

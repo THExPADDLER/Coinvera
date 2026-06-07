@@ -1237,6 +1237,137 @@ textarea:focus {
   font-size: 28px;
 }
 
+.chatShell {
+  width: min(1210px, calc(100% - 36px));
+  margin: 0 auto;
+  padding: 24px 0 50px;
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 16px;
+}
+
+.chatSummary,
+.chatPanel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(15, 42, 37, 0.07);
+}
+
+.chatSummary {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.chatSummary h1 {
+  margin: 0;
+  font-size: 36px;
+}
+
+.timerBadge {
+  width: fit-content;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #6a3b07;
+  background: #fff4e5;
+  font-weight: 850;
+}
+
+.summaryRows,
+.proofBox {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fbfa;
+}
+
+.summaryRows span,
+.proofBox span,
+.proofBox small {
+  color: var(--muted);
+}
+
+.proofBox strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  overflow-wrap: anywhere;
+}
+
+.chatPanel {
+  min-height: 620px;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+}
+
+.chatMessages {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  overflow: auto;
+}
+
+.chatBubble {
+  width: min(620px, 86%);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #eef5f1;
+}
+
+.chatBubble.customer {
+  justify-self: end;
+  background: #e4f5ef;
+}
+
+.chatBubble.admin {
+  background: #e9f0fb;
+}
+
+.chatBubble.system {
+  justify-self: center;
+  background: #fff4e5;
+}
+
+.chatBubble span,
+.chatBubble time,
+.chatBubble small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.chatBubble p {
+  margin: 6px 0;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.chatBubble small {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chatComposer {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  background: #f8fbfa;
+}
+
 .adminSettings {
   width: min(1210px, calc(100% - 36px));
   margin: 0 auto 16px;
@@ -1459,6 +1590,24 @@ tbody tr:last-child td {
   font-weight: 780;
 }
 
+.miniLink,
+.miniUpload {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #22332e;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.miniUpload input {
+  display: none;
+}
+
 .emptyState {
   min-height: 260px;
   display: grid;
@@ -1495,6 +1644,7 @@ tbody tr:last-child td {
   .tradeSection,
   .tradeChoiceSection,
   .flowGrid,
+  .chatShell,
   .adminHero {
     grid-template-columns: 1fr;
   }
@@ -1592,8 +1742,17 @@ tbody tr:last-child td {
   .settingsGrid,
   .fieldGroup,
   .paymentTabs,
-  .accountGrid {
+  .accountGrid,
+  .chatComposer {
     grid-template-columns: 1fr;
+  }
+
+  .chatShell {
+    width: min(100% - 24px, 1210px);
+  }
+
+  .chatBubble {
+    width: 100%;
   }
 
   .kycHeader {

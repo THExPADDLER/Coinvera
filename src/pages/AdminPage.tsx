@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
-import { loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrderStatus, usdt } from "../lib/desk";
+import { addOrderMessage, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
 import type { DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
 
 export function AdminPage() {
@@ -53,6 +53,19 @@ export function AdminPage() {
 
   function changeStatus(orderId: string, status: OrderStatus) {
     setOrders(updateOrderStatus(orderId, status));
+  }
+
+  function uploadAdminProof(order: DeskOrder, file: File | undefined) {
+    if (!file) return;
+    const proof = file.name;
+    updateOrder(order.id, { adminProof: proof, adminConfirmed: true, status: order.mode === "buy" ? "USDT Released" : "INR Paid" });
+    setOrders(addOrderMessage(order.id, { sender: "admin", text: order.mode === "buy" ? "USDT released. Proof uploaded from Coinvera side." : "INR payout completed. Proof uploaded from Coinvera side.", attachment: proof }));
+    setToast(`${order.id} proof uploaded`);
+  }
+
+  function completeOrder(order: DeskOrder) {
+    updateOrder(order.id, { adminConfirmed: true, status: "Completed" });
+    setOrders(addOrderMessage(order.id, { sender: "admin", text: "Coinvera marked this order completed." }));
   }
 
   function exportCsv() {
@@ -172,12 +185,21 @@ export function AdminPage() {
                           {order.paymentMethod && <span>Method: {order.paymentMethod.toUpperCase()}</span>}
                           {order.paymentReference && <span>Ref: {order.paymentReference}</span>}
                           {order.paymentScreenshot && <span>Proof: {order.paymentScreenshot}</span>}
+                          {order.adminProof && <span>Coinvera proof: {order.adminProof}</span>}
                         </td>
                         <td>
                           <StatusPill label={order.status} mode={order.mode} />
                         </td>
                         <td>
                           <div className="actionRow">
+                            <a className="miniLink" href={`/chat/${order.id}?admin=1`}>Chat</a>
+                            <label className="miniUpload">
+                              Upload proof
+                              <input type="file" accept="image/*" onChange={(event) => uploadAdminProof(order, event.target.files?.[0])} />
+                            </label>
+                            <button type="button" onClick={() => completeOrder(order)}>
+                              Complete with chat proof
+                            </button>
                             {statusFlow[order.mode].map((status) => (
                               <button key={status} type="button" onClick={() => changeStatus(order.id, status)}>
                                 {status}

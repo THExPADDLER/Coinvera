@@ -1,4 +1,4 @@
-import { ArrowLeft, Copy, Landmark, QrCode } from "lucide-react";
+import { ArrowLeft, Copy, Landmark, QrCode, Upload } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { Toast } from "../components/Toast";
@@ -18,6 +18,7 @@ export function SellPage() {
   const [confirmAccountNumber, setConfirmAccountNumber] = useState("");
   const [ifsc, setIfsc] = useState("");
   const [bankName, setBankName] = useState("");
+  const [screenshot, setScreenshot] = useState("");
   const [toast, setToast] = useState("");
   const total = useMemo(() => Number(amount || 0) * settings.rates.sell, [amount, settings.rates.sell]);
 
@@ -59,11 +60,12 @@ export function SellPage() {
       kyc: `Basic account: ${session.fullName}. No KYC verification required in prototype.`,
       paymentMethod: payoutMode,
       paymentReference: txHash,
+      paymentScreenshot: screenshot,
       status: "Awaiting USDT"
     });
-    setToast(`${order.id} sell request created`);
+    setToast(`${order.id} created. Opening order chat.`);
     window.setTimeout(() => {
-      window.location.href = "/orders";
+      window.location.href = `/chat/${order.id}`;
     }, 900);
   }
 
@@ -154,6 +156,12 @@ export function SellPage() {
                 </div>
               )}
             </div>
+            <label className="uploadLine wide">
+              <Upload size={18} />
+              Upload USDT transfer screenshot
+              <input type="file" accept="image/*" onChange={(event) => setScreenshot(event.target.files?.[0]?.name || "")} required />
+            </label>
+            {screenshot && <small className="wide">Uploaded: {screenshot}</small>}
             <button className="primaryButton wide" type="submit">Submit Sell Request</button>
           </form>
         </section>
