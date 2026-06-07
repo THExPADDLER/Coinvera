@@ -94,8 +94,8 @@ button {
 }
 
 .brandMark {
-  width: 68px;
-  height: 68px;
+  width: 74px;
+  height: 74px;
   display: block;
   flex: 0 0 auto;
   overflow: visible;
@@ -103,32 +103,43 @@ button {
 }
 
 .brandMark rect {
-  fill: rgba(3, 17, 15, 0.94);
-  stroke: rgba(18, 213, 171, 0.28);
+  fill: url("#coinveraMarkGlow");
+  stroke: rgba(16, 214, 170, 0.34);
   stroke-width: 1.4;
 }
 
-.brandRupee,
-.brandT,
 .brandDivider {
   fill: none;
   stroke-linecap: square;
   stroke-linejoin: round;
 }
 
-.brandRupee {
-  stroke: #05d9a4;
-  stroke-width: 7;
-}
-
-.brandT {
-  stroke: #ffffff;
-  stroke-width: 6.5;
-}
-
 .brandDivider {
   stroke: #05d9a4;
-  stroke-width: 2;
+  stroke-width: 2.2;
+}
+
+.brandRupeeGlyph,
+.brandTGlyph text {
+  font-family: "Segoe UI", "Noto Sans", "Segoe UI Symbol", Arial, sans-serif;
+  font-weight: 950;
+  dominant-baseline: alphabetic;
+}
+
+.brandRupeeGlyph {
+  fill: #05d9a4;
+  font-size: 70px;
+}
+
+.brandTGlyph text {
+  fill: #ffffff;
+  font-size: 58px;
+}
+
+.brandTGlyph ellipse {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 4;
 }
 
 .brandDark .brandMark {
@@ -2365,8 +2376,8 @@ tbody tr:last-child td {
   }
 
   .brandMark {
-    width: 58px;
-    height: 58px;
+    width: 62px;
+    height: 62px;
   }
 
   .brandName {
@@ -2485,8 +2496,8 @@ tbody tr:last-child td {
   }
 
   .brandMark {
-    width: 50px;
-    height: 50px;
+    width: 54px;
+    height: 54px;
   }
 
   .brandName {

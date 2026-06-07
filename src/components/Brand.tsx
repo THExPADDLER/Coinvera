@@ -7,12 +7,22 @@ interface BrandProps {
 export function Brand({ dark = false }: BrandProps) {
   return (
     <a className={`brand ${dark ? "brandDark" : ""}`} href="/" aria-label="Coinvera Exchange Desk home">
-      <svg className="brandMark" viewBox="0 0 92 92" role="img" aria-label="Coinvera USDT INR mark">
-        <rect x="5" y="5" width="82" height="82" rx="18" />
-        <path className="brandRupee" d="M20 28h30M20 38h28M49 28c0 20-14 31-30 31l23 25M22 48h28" />
-        <path className="brandDivider" d="M46 20v56" />
-        <path className="brandT" d="M53 28h28M67 28v43M55 53c8-6 24-6 32 0M57 61c8-5 20-5 28 0" />
-        </svg>
+      <svg className="brandMark" viewBox="0 0 104 104" role="img" aria-label="Coinvera USDT INR mark">
+        <defs>
+          <radialGradient id="coinveraMarkGlow" cx="50%" cy="0%" r="88%">
+            <stop offset="0%" stopColor="#17352f" />
+            <stop offset="58%" stopColor="#071716" />
+            <stop offset="100%" stopColor="#020b0b" />
+          </radialGradient>
+        </defs>
+        <rect x="5" y="5" width="94" height="94" rx="19" />
+        <path className="brandDivider" d="M53 22v62" />
+        <text className="brandRupeeGlyph" x="31" y="73" textAnchor="middle">₹</text>
+        <g className="brandTGlyph">
+          <text x="72" y="70" textAnchor="middle">T</text>
+          <ellipse cx="72" cy="57" rx="25" ry="7" />
+        </g>
+      </svg>
       <span className="brandText">
         <span className="brandName">
           <span>COIN</span>
