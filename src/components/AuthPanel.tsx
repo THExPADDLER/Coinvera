@@ -16,6 +16,7 @@ export function AuthPanel({ onClose, onLogin }: AuthPanelProps) {
     const form = new FormData(event.currentTarget);
     const fullName = String(form.get("fullName") || "Coinvera Customer").trim();
     const mobile = String(form.get("mobile") || "0000000000").trim();
+    const email = String(form.get("email") || "").trim();
     const session = saveCustomerSession({
       fullName,
       mobile,
@@ -27,7 +28,7 @@ export function AuthPanel({ onClose, onLogin }: AuthPanelProps) {
       digilockerVerified: true,
       consentAccepted: true,
       completedAt: new Date().toISOString()
-    });
+    }, email);
     onLogin(session);
     onClose();
   }

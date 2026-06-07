@@ -1835,6 +1835,78 @@ button.qrBox:disabled {
   overflow: hidden;
 }
 
+.usersPanel {
+  width: min(1210px, calc(100% - 36px));
+  margin: 0 auto 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 46px rgba(15, 42, 37, 0.08);
+}
+
+.userCards {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.userCard {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8fbfa;
+  display: grid;
+  gap: 13px;
+}
+
+.userCardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+
+.userCardHead strong,
+.userCardHead span {
+  display: block;
+}
+
+.userCardHead strong {
+  font-size: 18px;
+}
+
+.userCardHead span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.userStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.userStats span {
+  min-height: 56px;
+  padding: 9px;
+  border: 1px solid #dce9e3;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.userStats strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
 .activityLogPanel {
   width: min(1210px, calc(100% - 36px));
   margin: 16px auto 0;
@@ -2297,6 +2369,7 @@ tbody tr:last-child td {
   .lockedPanel,
   .metricGrid,
   .ordersSurface,
+  .usersPanel,
   .activityLogPanel,
   .trustStrip {
     width: min(100% - 24px, 1210px);
@@ -2348,6 +2421,7 @@ tbody tr:last-child td {
   .accountGrid,
   .chatComposer,
   .credentialGrid,
+  .userStats,
   .chainCard {
     grid-template-columns: 1fr;
   }

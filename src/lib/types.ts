@@ -68,6 +68,16 @@ export interface AdminActivityLog {
   detail?: string;
 }
 
+export interface CustomerUser {
+  id: string;
+  fullName: string;
+  mobile: string;
+  email?: string;
+  createdAt: string;
+  lastLoginAt: string;
+  status: "active" | "inactive";
+}
+
 export interface DeskRates {
   buy: number;
   sell: number;

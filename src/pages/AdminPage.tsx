@@ -1,10 +1,11 @@
-import { ClipboardList, Download, Eye, Lock, LogOut, RefreshCw, ShieldCheck, UserCheck } from "lucide-react";
+import { ClipboardList, Copy, Download, Eye, Lock, LogOut, RefreshCw, ShieldCheck, UserCheck, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
+import { loadCustomerUsers } from "../lib/auth";
 import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
-import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
+import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { fileToDataUrl, isImageData } from "../lib/files";
@@ -41,6 +42,7 @@ export function AdminPage() {
   const [password, setPassword] = useState("");
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [orders, setOrders] = useState<DeskOrder[]>([]);
+  const [users, setUsers] = useState<CustomerUser[]>([]);
   const [logs, setLogs] = useState<AdminActivityLog[]>([]);
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
@@ -61,20 +63,24 @@ export function AdminPage() {
 
   useEffect(() => {
     setOrders(loadOrders());
+    setUsers(loadCustomerUsers());
     setLogs(loadActivityLogs());
     const sync = () => {
       setOrders(loadOrders());
+      setUsers(loadCustomerUsers());
       setSettings(loadDeskSettings());
       setLogs(loadActivityLogs());
     };
     window.addEventListener("desk-orders-updated", sync);
     window.addEventListener("desk-settings-updated", sync);
     window.addEventListener("coinvera-activity-log-updated", sync);
+    window.addEventListener("coinvera-users-updated", sync);
     window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener("desk-orders-updated", sync);
       window.removeEventListener("desk-settings-updated", sync);
       window.removeEventListener("coinvera-activity-log-updated", sync);
+      window.removeEventListener("coinvera-users-updated", sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
@@ -160,6 +166,14 @@ export function AdminPage() {
     if (adminUser) {
       setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Exported order CSV" }));
     }
+  }
+
+  function copyMobile(user: CustomerUser) {
+    navigator.clipboard?.writeText(user.mobile);
+    if (adminUser) {
+      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Copied customer mobile", detail: user.mobile }));
+    }
+    setToast(`${user.mobile} copied`);
   }
 
   function updateSettings(next: DeskSettings) {
@@ -255,6 +269,8 @@ export function AdminPage() {
               <p>Your role can view orders, but only Owner can edit rates, UPI, bank, CDM, and seller deposit details.</p>
             </section>
           )}
+
+          <CustomerUsersSection users={users} orders={orders} onCopyMobile={copyMobile} />
 
           <section className="ordersSurface">
             {orders.length === 0 ? (
@@ -407,6 +423,97 @@ function Metric({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function CustomerUsersSection({
+  onCopyMobile,
+  orders,
+  users
+}: {
+  onCopyMobile: (user: CustomerUser) => void;
+  orders: DeskOrder[];
+  users: CustomerUser[];
+}) {
+  const userMap = new Map<string, CustomerUser>();
+  users.forEach((user) => userMap.set(user.mobile, user));
+  orders.forEach((order) => {
+    const mobile = order.customerMobile || order.phone;
+    if (!userMap.has(mobile)) {
+      userMap.set(mobile, {
+        id: `CUS-${mobile.slice(-4) || "ORDER"}`,
+        fullName: order.name,
+        mobile,
+        createdAt: order.createdAt,
+        lastLoginAt: order.createdAt,
+        status: "active"
+      });
+    }
+  });
+
+  const rows = Array.from(userMap.values()).map((user) => {
+    const userOrders = orders.filter((order) => order.customerMobile === user.mobile || order.phone === user.mobile);
+    const lastOrder = userOrders[0];
+    return {
+      user,
+      buyOrders: userOrders.filter((order) => order.mode === "buy").length,
+      cancelled: userOrders.filter((order) => order.status === "Cancelled").length,
+      completed: userOrders.filter((order) => order.status === "Completed").length,
+      inr: userOrders.reduce((sum, order) => sum + order.inr, 0),
+      lastOrderAt: lastOrder?.createdAt || user.lastLoginAt,
+      orders: userOrders.length,
+      sellOrders: userOrders.filter((order) => order.mode === "sell").length,
+      usdt: userOrders.reduce((sum, order) => sum + order.amount, 0)
+    };
+  });
+
+  return (
+    <section className="usersPanel">
+      <div className="settingsHead">
+        <div>
+          <h2>Customer Users</h2>
+          <p>Firebase-ready user list with order totals, volume, and quick customer actions.</p>
+        </div>
+        <UsersRound size={28} />
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="emptyState">No customer users yet. Signup/login customers will appear here.</div>
+      ) : (
+        <div className="userCards">
+          {rows.map((row) => (
+            <article className="userCard" key={row.user.id}>
+              <div className="userCardHead">
+                <div>
+                  <strong>{row.user.fullName}</strong>
+                  <span>{row.user.mobile}</span>
+                  {row.user.email && <span>{row.user.email}</span>}
+                </div>
+                <span className="roleBadge viewer">{row.user.id}</span>
+              </div>
+              <div className="userStats">
+                <span>Orders <strong>{row.orders}</strong></span>
+                <span>Buy <strong>{row.buyOrders}</strong></span>
+                <span>Sell <strong>{row.sellOrders}</strong></span>
+                <span>Done <strong>{row.completed}</strong></span>
+                <span>Cancel <strong>{row.cancelled}</strong></span>
+                <span>USDT <strong>{usdt(row.usdt)}</strong></span>
+                <span>INR <strong>{money(row.inr)}</strong></span>
+                <span>Last <strong>{new Date(row.lastOrderAt).toLocaleDateString("en-IN")}</strong></span>
+              </div>
+              <div className="actionRow">
+                <button type="button" onClick={() => onCopyMobile(row.user)}>
+                  <Copy size={15} />
+                  Copy mobile
+                </button>
+                <a className="miniLink" href="/orders">View orders</a>
+                <a className="miniLink" href="/messages">Messages</a>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
