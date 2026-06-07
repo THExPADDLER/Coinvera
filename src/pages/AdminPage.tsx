@@ -386,10 +386,6 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
           <input value={draft.payment.upiId} onChange={(event) => setPayment("upiId", event.target.value)} />
         </label>
         <label className="wide">
-          UPI QR image URL
-          <input value={draft.payment.upiQr} onChange={(event) => setPayment("upiQr", event.target.value)} placeholder="Paste QR image URL or data URL" />
-        </label>
-        <label className="wide">
           Upload UPI QR barcode
           <input type="file" accept="image/*" onChange={(event) => uploadQr(event.target.files?.[0])} />
         </label>
@@ -407,10 +403,6 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
               <label>
                 Wallet address
                 <input value={chain.wallet} onChange={(event) => setBlockchain(index, { wallet: event.target.value })} placeholder="Deposit wallet address" />
-              </label>
-              <label>
-                QR image URL
-                <input value={chain.qr} onChange={(event) => setBlockchain(index, { qr: event.target.value })} placeholder="Paste QR image URL or data URL" />
               </label>
               <label>
                 Upload QR
