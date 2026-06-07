@@ -148,16 +148,22 @@ button {
 .brandName {
   display: flex;
   align-items: baseline;
-  font-size: clamp(38px, 3.7vw, 52px);
-  line-height: 0.9;
+  gap: 5px;
+  font-size: clamp(34px, 3.4vw, 48px);
+  line-height: 0.86;
   color: #fff;
-  font-weight: 920;
+  font-weight: 900;
+  font-family: "Segoe UI", "Noto Sans", Arial, sans-serif;
   text-shadow: 0 8px 28px rgba(0, 0, 0, 0.24);
 }
 
+.brandName span:first-child {
+  color: #05d9a4;
+}
+
 .brandName span:last-child {
-  color: rgba(255, 255, 255, 0.86);
-  font-weight: 780;
+  color: #ffffff;
+  font-weight: 820;
 }
 
 .brandTagline {
@@ -177,12 +183,15 @@ button {
 }
 
 .brandDark .brandName {
-  color: var(--ink);
   text-shadow: none;
 }
 
+.brandDark .brandName span:first-child {
+  color: var(--teal);
+}
+
 .brandDark .brandName span:last-child {
-  color: #4c625c;
+  color: var(--ink);
 }
 
 .brandDark .brandTagline {
