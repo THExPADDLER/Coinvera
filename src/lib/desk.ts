@@ -1,4 +1,5 @@
 import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderChatMessage, OrderStatus, TradeMode } from "./types";
+import { saveActivityLogsToFirebase, saveOrdersToFirebase, saveSettingsToFirebase } from "./remoteStore";
 
 export const defaultBlockchains: BlockchainDeposit[] = [
   {
@@ -93,7 +94,12 @@ export function loadOrders(): DeskOrder[] {
 }
 
 export function saveOrders(orders: DeskOrder[]): void {
-  localStorage.setItem(storageKey, JSON.stringify(orders));
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(orders));
+  } catch {
+    console.warn("Local order storage failed; Firebase sync will continue when configured.");
+  }
+  void saveOrdersToFirebase(orders);
   window.dispatchEvent(new Event("desk-orders-updated"));
 }
 
@@ -152,7 +158,12 @@ export function loadDeskSettings(): DeskSettings {
 }
 
 export function saveDeskSettings(settings: DeskSettings): DeskSettings {
-  localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+  try {
+    localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+  } catch {
+    console.warn("Local settings storage failed; Firebase sync will continue when configured.");
+  }
+  void saveSettingsToFirebase(settings);
   window.dispatchEvent(new Event("desk-settings-updated"));
   return settings;
 }
@@ -211,7 +222,12 @@ export function addActivityLog(input: Omit<AdminActivityLog, "id" | "at">): Admi
     at: new Date().toISOString()
   };
   const logs = [entry, ...loadActivityLogs()].slice(0, 300);
-  localStorage.setItem(activityLogStorageKey, JSON.stringify(logs));
+  try {
+    localStorage.setItem(activityLogStorageKey, JSON.stringify(logs));
+  } catch {
+    console.warn("Local activity log storage failed; Firebase sync will continue when configured.");
+  }
+  void saveActivityLogsToFirebase(logs);
   window.dispatchEvent(new Event("coinvera-activity-log-updated"));
   return logs;
 }

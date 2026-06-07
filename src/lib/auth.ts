@@ -1,6 +1,7 @@
 import { isKycComplete, loadKycSession, saveKycSession } from "./kyc";
 import type { KycSession } from "./kyc";
 import type { CustomerUser } from "./types";
+import { saveUsersToFirebase } from "./remoteStore";
 
 export const authStorageKey = "coinvera-auth-session";
 export const usersStorageKey = "coinvera-customer-users";
@@ -38,7 +39,12 @@ export function loadCustomerUsers(): CustomerUser[] {
 }
 
 export function saveCustomerUsers(users: CustomerUser[]): CustomerUser[] {
-  localStorage.setItem(usersStorageKey, JSON.stringify(users));
+  try {
+    localStorage.setItem(usersStorageKey, JSON.stringify(users));
+  } catch {
+    console.warn("Local user storage failed; Firebase sync will continue when configured.");
+  }
+  void saveUsersToFirebase(users);
   window.dispatchEvent(new Event("coinvera-users-updated"));
   return users;
 }

@@ -8,7 +8,10 @@ import { MessagesPage } from "./pages/MessagesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { SellPage } from "./pages/SellPage";
+import { syncFirebaseToLocal } from "./lib/remoteStore";
 import "./styles.css";
+
+void syncFirebaseToLocal();
 
 function App() {
   const path = window.location.pathname;
