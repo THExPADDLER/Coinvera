@@ -5,14 +5,42 @@ import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
 import { addOrderMessage, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
-import type { DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
+import type { AdminRole, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
+
+interface AdminUser {
+  username: string;
+  role: AdminRole;
+  label: string;
+}
+
+const adminUsers: Array<AdminUser & { password: string }> = [
+  { username: "owner", password: "1234", role: "owner", label: "Owner" },
+  { username: "manager", password: "1234", role: "manager", label: "Manager" },
+  { username: "operator", password: "1234", role: "operator", label: "Operator" },
+  { username: "viewer", password: "1234", role: "viewer", label: "Viewer" }
+];
+
+const rolePermissions: Record<AdminRole, {
+  canEditSettings: boolean;
+  canExport: boolean;
+  canUploadProof: boolean;
+  canComplete: boolean;
+  canChangeStatus: boolean;
+}> = {
+  owner: { canEditSettings: true, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true },
+  manager: { canEditSettings: false, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true },
+  operator: { canEditSettings: false, canExport: false, canUploadProof: true, canComplete: false, canChangeStatus: true },
+  viewer: { canEditSettings: false, canExport: false, canUploadProof: false, canComplete: false, canChangeStatus: false }
+};
 
 export function AdminPage() {
-  const [pin, setPin] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [orders, setOrders] = useState<DeskOrder[]>([]);
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
+  const permissions = adminUser ? rolePermissions[adminUser.role] : rolePermissions.viewer;
 
   const activeOrders = useMemo(() => orders.filter((order) => !["Completed", "Cancelled"].includes(order.status)), [orders]);
   const summary = useMemo(
@@ -42,20 +70,30 @@ export function AdminPage() {
   }, []);
 
   function unlock() {
-    if (pin !== "1234") {
-      setToast("Incorrect admin PIN");
+    const found = adminUsers.find((user) => user.username === username.trim().toLowerCase() && user.password === password);
+    if (!found) {
+      setToast("Incorrect admin credentials");
       return;
     }
-    setUnlocked(true);
-    setPin("");
-    setToast("Admin panel unlocked");
+    setAdminUser({ username: found.username, role: found.role, label: found.label });
+    setUsername("");
+    setPassword("");
+    setToast(`${found.label} access unlocked`);
   }
 
   function changeStatus(orderId: string, status: OrderStatus) {
+    if (!permissions.canChangeStatus) {
+      setToast("This role cannot change order status");
+      return;
+    }
     setOrders(updateOrderStatus(orderId, status));
   }
 
   function uploadAdminProof(order: DeskOrder, file: File | undefined) {
+    if (!permissions.canUploadProof) {
+      setToast("This role cannot upload proof");
+      return;
+    }
     if (!file) return;
     const proof = file.name;
     updateOrder(order.id, { adminProof: proof, adminConfirmed: true, status: order.mode === "buy" ? "USDT Released" : "INR Paid" });
@@ -64,11 +102,19 @@ export function AdminPage() {
   }
 
   function completeOrder(order: DeskOrder) {
+    if (!permissions.canComplete) {
+      setToast("This role cannot complete orders");
+      return;
+    }
     updateOrder(order.id, { adminConfirmed: true, status: "Completed" });
     setOrders(addOrderMessage(order.id, { sender: "admin", text: "Coinvera marked this order completed." }));
   }
 
   function exportCsv() {
+    if (!permissions.canExport) {
+      setToast("This role cannot export CSV");
+      return;
+    }
     const blob = new Blob([toCsv(orders)], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -79,6 +125,10 @@ export function AdminPage() {
   }
 
   function updateSettings(next: DeskSettings) {
+    if (!permissions.canEditSettings) {
+      setToast("This role cannot edit website settings");
+      return;
+    }
     setSettings(saveDeskSettings(next));
     setToast("Website rates and payment details updated");
   }
@@ -101,25 +151,29 @@ export function AdminPage() {
           <p>Pay customers, receive INR, release USDT, export orders, and monitor Coinvera settlement exposure.</p>
         </div>
         <div className="adminAuth">
-          {!unlocked ? (
+          {!adminUser ? (
             <>
-              <input value={pin} onChange={(event) => setPin(event.target.value)} type="password" inputMode="numeric" placeholder="Admin PIN" />
+              <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" />
+              <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Password" />
               <button className="primaryButton compact" type="button" onClick={unlock}>
                 <Lock size={17} />
-                Unlock
+                Sign in
               </button>
             </>
           ) : (
             <>
+              <span className={`roleBadge ${adminUser.role}`}>{adminUser.label}</span>
               <button className="softButton dark" type="button" onClick={() => setOrders(loadOrders())}>
                 <RefreshCw size={16} />
                 Refresh
               </button>
-              <button className="softButton dark" type="button" onClick={exportCsv}>
-                <Download size={16} />
-                CSV
-              </button>
-              <button className="softButton dark" type="button" onClick={() => setUnlocked(false)}>
+              {permissions.canExport && (
+                <button className="softButton dark" type="button" onClick={exportCsv}>
+                  <Download size={16} />
+                  CSV
+                </button>
+              )}
+              <button className="softButton dark" type="button" onClick={() => setAdminUser(null)}>
                 <LogOut size={16} />
                 Lock
               </button>
@@ -128,11 +182,19 @@ export function AdminPage() {
         </div>
       </header>
 
-      {!unlocked ? (
+      {!adminUser ? (
         <section className="lockedPanel">
           <ShieldCheck size={34} />
           <h2>Admin access required</h2>
-          <p>Use PIN 1234 for this prototype. Customer and admin pages are separate, but orders are shared through browser storage.</p>
+          <p>Use the demo role credentials below. Customer and admin pages are separate, but orders are shared through browser storage.</p>
+          <div className="credentialGrid">
+            {adminUsers.map((user) => (
+              <div key={user.username}>
+                <strong>{user.label}</strong>
+                <span>{user.username} / {user.password}</span>
+              </div>
+            ))}
+          </div>
         </section>
       ) : (
         <>
@@ -143,7 +205,14 @@ export function AdminPage() {
             <Metric label="INR payable" value={money(summary.payable)} />
           </section>
 
-          <AdminSettings settings={settings} onSave={updateSettings} />
+          {permissions.canEditSettings ? (
+            <AdminSettings settings={settings} onSave={updateSettings} />
+          ) : (
+            <section className="adminSettings restrictedPanel">
+              <h2>Website Rates & Payment Setup</h2>
+              <p>Your role can view orders, but only Owner can edit rates, UPI, bank, CDM, and seller deposit details.</p>
+            </section>
+          )}
 
           <section className="ordersSurface">
             {orders.length === 0 ? (
@@ -193,18 +262,26 @@ export function AdminPage() {
                         <td>
                           <div className="actionRow">
                             <a className="miniLink" href={`/chat/${order.id}?admin=1`}>Chat</a>
-                            <label className="miniUpload">
-                              Upload proof
-                              <input type="file" accept="image/*" onChange={(event) => uploadAdminProof(order, event.target.files?.[0])} />
-                            </label>
-                            <button type="button" onClick={() => completeOrder(order)}>
-                              Complete with chat proof
-                            </button>
-                            {statusFlow[order.mode].map((status) => (
-                              <button key={status} type="button" onClick={() => changeStatus(order.id, status)}>
-                                {status}
+                            {permissions.canUploadProof && (
+                              <label className="miniUpload">
+                                Upload proof
+                                <input type="file" accept="image/*" onChange={(event) => uploadAdminProof(order, event.target.files?.[0])} />
+                              </label>
+                            )}
+                            {permissions.canComplete && (
+                              <button type="button" onClick={() => completeOrder(order)}>
+                                Complete with chat proof
                               </button>
-                            ))}
+                            )}
+                            {permissions.canChangeStatus ? (
+                              statusFlow[order.mode].map((status) => (
+                                <button key={status} type="button" onClick={() => changeStatus(order.id, status)}>
+                                  {status}
+                                </button>
+                              ))
+                            ) : (
+                              <span className="readOnlyNote">Read only</span>
+                            )}
                           </div>
                         </td>
                       </tr>

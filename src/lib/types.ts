@@ -14,6 +14,8 @@ export type OrderStatus =
 
 export type Network = "TRC20" | "ERC20" | "BEP20" | "Polygon";
 
+export type AdminRole = "owner" | "manager" | "operator" | "viewer";
+
 export interface DeskOrder {
   id: string;
   createdAt: string;

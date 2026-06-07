@@ -1443,6 +1443,86 @@ textarea:focus {
   background: #fff;
 }
 
+.roleBadge {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--ink);
+  font-weight: 850;
+}
+
+.roleBadge.owner {
+  background: linear-gradient(135deg, var(--teal), var(--blue));
+}
+
+.roleBadge.manager {
+  background: var(--blue);
+}
+
+.roleBadge.operator {
+  background: var(--tealDark);
+}
+
+.roleBadge.viewer {
+  background: #53625e;
+}
+
+.credentialGrid {
+  width: min(640px, 100%);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.credentialGrid div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fbfa;
+}
+
+.credentialGrid strong,
+.credentialGrid span {
+  display: block;
+}
+
+.credentialGrid span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.restrictedPanel {
+  display: grid;
+  gap: 6px;
+}
+
+.restrictedPanel h2,
+.restrictedPanel p {
+  margin: 0;
+}
+
+.restrictedPanel p,
+.readOnlyNote {
+  color: var(--muted);
+}
+
+.readOnlyNote {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+  font-size: 13px;
+  font-weight: 780;
+}
+
 .lockedPanel,
 .metricGrid,
 .ordersSurface {
@@ -1657,6 +1737,10 @@ tbody tr:last-child td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .credentialGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .trustStrip {
     grid-template-columns: 1fr;
     margin-top: 0;
@@ -1743,7 +1827,8 @@ tbody tr:last-child td {
   .fieldGroup,
   .paymentTabs,
   .accountGrid,
-  .chatComposer {
+  .chatComposer,
+  .credentialGrid {
     grid-template-columns: 1fr;
   }
 
