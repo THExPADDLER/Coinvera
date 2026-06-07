@@ -40,6 +40,10 @@ export interface DeskOrder {
   adminProof?: string;
   customerConfirmed?: boolean;
   adminConfirmed?: boolean;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
+  assignedStaffRole?: AdminRole;
+  assignedAt?: string;
   chat?: OrderChatMessage[];
 }
 
@@ -49,6 +53,19 @@ export interface OrderChatMessage {
   sender: "customer" | "admin" | "system";
   text: string;
   attachment?: string;
+  staffId?: string;
+  staffName?: string;
+}
+
+export interface AdminActivityLog {
+  id: string;
+  at: string;
+  staffId: string;
+  staffName: string;
+  role: AdminRole;
+  action: string;
+  orderId?: string;
+  detail?: string;
 }
 
 export interface DeskRates {

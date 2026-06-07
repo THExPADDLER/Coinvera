@@ -1,4 +1,4 @@
-import type { BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderChatMessage, OrderStatus, TradeMode } from "./types";
+import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderChatMessage, OrderStatus, TradeMode } from "./types";
 
 export const defaultBlockchains: BlockchainDeposit[] = [
   {
@@ -71,6 +71,7 @@ export const defaultSettings: DeskSettings = {
 
 export const storageKey = "usdt-inr-desk-orders";
 export const settingsStorageKey = "coinvera-desk-settings";
+export const activityLogStorageKey = "coinvera-admin-activity-log";
 export const orderTtlMs = 30 * 60 * 1000;
 
 export const statusFlow: Record<TradeMode, OrderStatus[]> = {
@@ -162,6 +163,22 @@ export function updateOrderStatus(orderId: string, status: OrderStatus): DeskOrd
   return orders;
 }
 
+export function assignOrderToStaff(orderId: string, staff: { staffId: string; staffName: string; role: AdminRole }): DeskOrder[] {
+  const orders = loadOrders().map((order) =>
+    order.id === orderId
+      ? {
+          ...order,
+          assignedStaffId: staff.staffId,
+          assignedStaffName: staff.staffName,
+          assignedStaffRole: staff.role,
+          assignedAt: new Date().toISOString()
+        }
+      : order
+  );
+  saveOrders(orders);
+  return orders;
+}
+
 export function updateOrder(orderId: string, patch: Partial<DeskOrder>): DeskOrder[] {
   const orders = loadOrders().map((order) => (order.id === orderId ? { ...order, ...patch } : order));
   saveOrders(orders);
@@ -177,6 +194,26 @@ export function addOrderMessage(orderId: string, message: Omit<OrderChatMessage,
   const orders = loadOrders().map((order) => (order.id === orderId ? { ...order, chat: [...(order.chat || []), chatMessage] } : order));
   saveOrders(orders);
   return orders;
+}
+
+export function loadActivityLogs(): AdminActivityLog[] {
+  try {
+    return JSON.parse(localStorage.getItem(activityLogStorageKey) || "[]") as AdminActivityLog[];
+  } catch {
+    return [];
+  }
+}
+
+export function addActivityLog(input: Omit<AdminActivityLog, "id" | "at">): AdminActivityLog[] {
+  const entry: AdminActivityLog = {
+    ...input,
+    id: `LOG-${Date.now().toString(36)}`,
+    at: new Date().toISOString()
+  };
+  const logs = [entry, ...loadActivityLogs()].slice(0, 300);
+  localStorage.setItem(activityLogStorageKey, JSON.stringify(logs));
+  window.dispatchEvent(new Event("coinvera-activity-log-updated"));
+  return logs;
 }
 
 export function createOrder(input: Omit<DeskOrder, "id" | "createdAt" | "inr" | "status"> & { status?: OrderStatus }): DeskOrder {
@@ -246,7 +283,7 @@ export function usdt(value: number): string {
 }
 
 export function toCsv(orders: DeskOrder[]): string {
-  const header = ["id", "createdAt", "expiresAt", "type", "name", "phone", "amountUSDT", "rateINR", "totalINR", "network", "walletOrTx", "payment", "paymentMethod", "paymentReference", "paymentScreenshot", "adminProof", "customerConfirmed", "adminConfirmed", "kyc", "status"];
+  const header = ["id", "createdAt", "expiresAt", "type", "name", "phone", "amountUSDT", "rateINR", "totalINR", "network", "walletOrTx", "payment", "paymentMethod", "paymentReference", "paymentScreenshot", "adminProof", "assignedStaffId", "assignedStaffName", "customerConfirmed", "adminConfirmed", "kyc", "status"];
   const rows = orders.map((order) => {
     const values: Record<string, string | number> = {
       id: order.id,
@@ -265,6 +302,8 @@ export function toCsv(orders: DeskOrder[]): string {
       paymentReference: order.paymentReference || "",
       paymentScreenshot: order.paymentScreenshot || "",
       adminProof: order.adminProof || "",
+      assignedStaffId: order.assignedStaffId || "",
+      assignedStaffName: order.assignedStaffName || "",
       customerConfirmed: order.customerConfirmed ? "yes" : "no",
       adminConfirmed: order.adminConfirmed ? "yes" : "no",
       kyc: order.kyc,

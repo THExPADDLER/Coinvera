@@ -1,10 +1,10 @@
-import { Download, Eye, Lock, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
+import { ClipboardList, Download, Eye, Lock, LogOut, RefreshCw, ShieldCheck, UserCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
-import { addOrderMessage, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
-import type { AdminRole, BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
+import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
+import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { fileToDataUrl, isImageData } from "../lib/files";
@@ -13,13 +13,14 @@ interface AdminUser {
   username: string;
   role: AdminRole;
   label: string;
+  staffId: string;
 }
 
 const adminUsers: Array<AdminUser & { password: string }> = [
-  { username: "owner", password: "1234", role: "owner", label: "Owner" },
-  { username: "manager", password: "1234", role: "manager", label: "Manager" },
-  { username: "operator", password: "1234", role: "operator", label: "Operator" },
-  { username: "viewer", password: "1234", role: "viewer", label: "Viewer" }
+  { username: "owner", password: "1234", role: "owner", label: "Owner", staffId: "CV-OWNER-001" },
+  { username: "manager", password: "1234", role: "manager", label: "Manager", staffId: "CV-MGR-001" },
+  { username: "operator", password: "1234", role: "operator", label: "Operator", staffId: "CV-OP-101" },
+  { username: "viewer", password: "1234", role: "viewer", label: "Viewer", staffId: "CV-VIEW-001" }
 ];
 
 const rolePermissions: Record<AdminRole, {
@@ -40,6 +41,7 @@ export function AdminPage() {
   const [password, setPassword] = useState("");
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [orders, setOrders] = useState<DeskOrder[]>([]);
+  const [logs, setLogs] = useState<AdminActivityLog[]>([]);
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
   const [cropTarget, setCropTarget] = useState<{ file: File; type: "upi" | "chain"; index?: number } | null>(null);
@@ -59,16 +61,20 @@ export function AdminPage() {
 
   useEffect(() => {
     setOrders(loadOrders());
+    setLogs(loadActivityLogs());
     const sync = () => {
       setOrders(loadOrders());
       setSettings(loadDeskSettings());
+      setLogs(loadActivityLogs());
     };
     window.addEventListener("desk-orders-updated", sync);
     window.addEventListener("desk-settings-updated", sync);
+    window.addEventListener("coinvera-activity-log-updated", sync);
     window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener("desk-orders-updated", sync);
       window.removeEventListener("desk-settings-updated", sync);
+      window.removeEventListener("coinvera-activity-log-updated", sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
@@ -79,7 +85,8 @@ export function AdminPage() {
       setToast("Incorrect admin credentials");
       return;
     }
-    setAdminUser({ username: found.username, role: found.role, label: found.label });
+    setAdminUser({ username: found.username, role: found.role, label: found.label, staffId: found.staffId });
+    setLogs(addActivityLog({ staffId: found.staffId, staffName: found.label, role: found.role, action: "Signed in to admin panel" }));
     setUsername("");
     setPassword("");
     setToast(`${found.label} access unlocked`);
@@ -91,6 +98,20 @@ export function AdminPage() {
       return;
     }
     setOrders(updateOrderStatus(orderId, status));
+    if (adminUser) {
+      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: `Changed status to ${status}`, orderId }));
+    }
+  }
+
+  function takeChat(order: DeskOrder) {
+    if (!adminUser || adminUser.role === "viewer") {
+      setToast("This role cannot take chats");
+      return;
+    }
+    setOrders(assignOrderToStaff(order.id, { staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role }));
+    setOrders(addOrderMessage(order.id, { sender: "system", text: `${adminUser.label} (${adminUser.staffId}) is now handling this chat.` }));
+    setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: order.assignedStaffId ? "Reassigned chat to self" : "Took chat", orderId: order.id }));
+    setToast(`${order.id} assigned to ${adminUser.staffId}`);
   }
 
   async function uploadAdminProof(order: DeskOrder, file: File | undefined) {
@@ -101,7 +122,10 @@ export function AdminPage() {
     if (!file) return;
     const proof = await fileToDataUrl(file);
     updateOrder(order.id, { adminProof: proof, adminConfirmed: true, status: order.mode === "buy" ? "USDT Released" : "INR Paid" });
-    setOrders(addOrderMessage(order.id, { sender: "admin", text: order.mode === "buy" ? "USDT released. Proof uploaded from Coinvera side." : "INR payout completed. Proof uploaded from Coinvera side.", attachment: file.name }));
+    setOrders(addOrderMessage(order.id, { sender: "admin", text: order.mode === "buy" ? "USDT released. Proof uploaded from Coinvera side." : "INR payout completed. Proof uploaded from Coinvera side.", attachment: file.name, staffId: adminUser?.staffId, staffName: adminUser?.label }));
+    if (adminUser) {
+      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Uploaded Coinvera proof", orderId: order.id }));
+    }
     setToast(`${order.id} proof uploaded`);
   }
 
@@ -115,7 +139,10 @@ export function AdminPage() {
       return;
     }
     updateOrder(order.id, { adminConfirmed: true, status: "Completed" });
-    setOrders(addOrderMessage(order.id, { sender: "admin", text: "Coinvera staff completed this order. Chat is now closed." }));
+    setOrders(addOrderMessage(order.id, { sender: "admin", text: "Coinvera staff completed this order. Chat is now closed.", staffId: adminUser?.staffId, staffName: adminUser?.label }));
+    if (adminUser) {
+      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Completed order", orderId: order.id }));
+    }
   }
 
   function exportCsv() {
@@ -130,6 +157,9 @@ export function AdminPage() {
     link.download = "usdt-inr-orders.csv";
     link.click();
     URL.revokeObjectURL(url);
+    if (adminUser) {
+      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Exported order CSV" }));
+    }
   }
 
   function updateSettings(next: DeskSettings) {
@@ -138,6 +168,9 @@ export function AdminPage() {
       return;
     }
     setSettings(saveDeskSettings(next));
+    if (adminUser) {
+      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Updated website rates/payment settings" }));
+    }
     setToast("Website rates and payment details updated");
   }
 
@@ -170,7 +203,7 @@ export function AdminPage() {
             </>
           ) : (
             <>
-              <span className={`roleBadge ${adminUser.role}`}>{adminUser.label}</span>
+              <span className={`roleBadge ${adminUser.role}`}>{adminUser.label} · {adminUser.staffId}</span>
               <button className="softButton dark" type="button" onClick={() => setOrders(loadOrders())}>
                 <RefreshCw size={16} />
                 Refresh
@@ -200,6 +233,7 @@ export function AdminPage() {
               <div key={user.username}>
                 <strong>{user.label}</strong>
                 <span>{user.username} / {user.password}</span>
+                <span>{user.staffId}</span>
               </div>
             ))}
           </div>
@@ -244,6 +278,7 @@ export function AdminPage() {
                         <td>
                           <strong>{order.id}</strong>
                           <span>{new Date(order.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
+                          <span>{order.assignedStaffId ? `Agent: ${order.assignedStaffId}` : "Unassigned"}</span>
                         </td>
                         <td>
                           <strong>{order.name}</strong>
@@ -269,12 +304,17 @@ export function AdminPage() {
                         </td>
                         <td>
                           <div className="actionRow">
-                            <a className="miniLink" href={`/chat/${order.id}?admin=1`}>Chat</a>
+                            <a className="miniLink" href={`/chat/${order.id}?admin=1&staffId=${encodeURIComponent(adminUser.staffId)}&staffName=${encodeURIComponent(adminUser.label)}`}>Chat</a>
+                            <button type="button" onClick={() => takeChat(order)}>
+                              <UserCheck size={15} />
+                              {order.assignedStaffId ? "Take / Reassign" : "Take Chat"}
+                            </button>
                             <button
                               type="button"
                               onClick={() =>
                                 order.paymentScreenshot && isImageData(order.paymentScreenshot)
-                                  ? setPreviewProof({ src: order.paymentScreenshot, alt: `${order.id} customer proof` })
+                                  ? (setPreviewProof({ src: order.paymentScreenshot, alt: `${order.id} customer proof` }),
+                                    setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Viewed customer proof", orderId: order.id })))
                                   : setToast(order.paymentScreenshot ? "This older proof has only a file name. New uploads will open as images." : "No customer proof uploaded yet")
                               }
                             >
@@ -307,6 +347,31 @@ export function AdminPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </section>
+          <section className="activityLogPanel">
+            <div className="settingsHead">
+              <div>
+                <h2>Admin Activity Log</h2>
+                <p>Staff login, chat assignment, proof upload, status updates, completion, and export actions.</p>
+              </div>
+              <ClipboardList size={28} />
+            </div>
+            {logs.length === 0 ? (
+              <div className="emptyState">No admin activity recorded yet.</div>
+            ) : (
+              <div className="activityLogList">
+                {logs.slice(0, 80).map((log) => (
+                  <article className="activityLogItem" key={log.id}>
+                    <div>
+                      <strong>{log.staffId}</strong>
+                      <span>{log.staffName} · {log.role}</span>
+                    </div>
+                    <p>{log.action}</p>
+                    <span>{log.orderId || "System"} · {new Date(log.at).toLocaleString("en-IN")}</span>
+                  </article>
+                ))}
               </div>
             )}
           </section>

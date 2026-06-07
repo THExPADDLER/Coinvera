@@ -3,18 +3,21 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
 import { loadCustomerSession } from "../lib/auth";
-import { addOrderMessage, loadOrders, money, usdt } from "../lib/desk";
+import { addActivityLog, addOrderMessage, loadOrders, money, usdt } from "../lib/desk";
 import { isImageData } from "../lib/files";
 import type { DeskOrder } from "../lib/types";
 
 export function ChatPage() {
   const orderId = window.location.pathname.split("/").filter(Boolean)[1];
-  const isAdminView = new URLSearchParams(window.location.search).get("admin") === "1";
+  const params = new URLSearchParams(window.location.search);
+  const isAdminView = params.get("admin") === "1";
   const session = loadCustomerSession();
   const [orders, setOrders] = useState<DeskOrder[]>([]);
   const [text, setText] = useState("");
   const [tick, setTick] = useState(Date.now());
   const order = useMemo(() => orders.find((item) => item.id === orderId), [orders, orderId]);
+  const staffId = params.get("staffId") || order?.assignedStaffId || "CV-STAFF";
+  const staffName = params.get("staffName") || order?.assignedStaffName || "Coinvera Staff";
   const chatClosed = Boolean(order && ["Completed", "Cancelled"].includes(order.status));
 
   useEffect(() => {
@@ -44,7 +47,10 @@ export function ChatPage() {
   function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!order || chatClosed || !text.trim()) return;
-    setOrders(addOrderMessage(order.id, { sender: isAdminView ? "admin" : "customer", text: text.trim() }));
+    setOrders(addOrderMessage(order.id, { sender: isAdminView ? "admin" : "customer", text: text.trim(), staffId: isAdminView ? staffId : undefined, staffName: isAdminView ? staffName : undefined }));
+    if (isAdminView) {
+      addActivityLog({ staffId, staffName, role: order.assignedStaffRole || "operator", action: "Sent chat message", orderId: order.id });
+    }
     setText("");
   }
 
@@ -108,7 +114,7 @@ export function ChatPage() {
           <div className="chatMessages">
             {(order.chat || []).map((message) => (
               <article className={`chatBubble ${message.sender}`} key={message.id}>
-                <span>{message.sender === "admin" ? "Coinvera" : message.sender === "system" ? "System" : "Customer"}</span>
+                <span>{message.sender === "admin" ? `Coinvera Staff${message.staffId ? ` · ${message.staffId}` : ""}` : message.sender === "system" ? "System" : "Customer"}</span>
                 <p>{message.text}</p>
                 {message.attachment && <small><ImageIcon size={14} /> {message.attachment}</small>}
                 <time>{new Date(message.at).toLocaleString("en-IN")}</time>
