@@ -102,6 +102,11 @@ button {
   filter: drop-shadow(0 16px 34px rgba(0, 0, 0, 0.26));
 }
 
+.brandMarkImage {
+  border-radius: 19px;
+  object-fit: contain;
+}
+
 .brandMark rect {
   fill: url("#coinveraMarkGlow");
   stroke: rgba(16, 214, 170, 0.34);
@@ -1853,6 +1858,86 @@ button.qrBox:disabled {
   font-size: clamp(24px, 3vw, 32px);
 }
 
+.adminMenuGrid {
+  width: min(1210px, calc(100% - 36px));
+  margin: 0 auto 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.adminMenuCard {
+  min-height: 184px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 42px rgba(15, 42, 37, 0.08);
+  color: var(--ink);
+  text-align: left;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.adminMenuCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(17, 146, 118, 0.45);
+  box-shadow: 0 20px 52px rgba(15, 42, 37, 0.12);
+}
+
+.adminMenuIcon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--teal), var(--blue));
+}
+
+.adminMenuCard strong,
+.adminMenuCard em,
+.adminMenuCard small {
+  display: block;
+}
+
+.adminMenuCard strong {
+  font-size: 21px;
+}
+
+.adminMenuCard em {
+  margin-top: 4px;
+  color: var(--tealDark);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.adminMenuCard small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.sectionBackBar {
+  width: min(1210px, calc(100% - 36px));
+  margin: 0 auto 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 42, 37, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sectionBackBar strong {
+  font-size: 18px;
+}
+
 .ordersSurface {
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -2354,6 +2439,10 @@ tbody tr:last-child td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .adminMenuGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .credentialGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2389,6 +2478,8 @@ tbody tr:last-child td {
   .adminHero,
   .lockedPanel,
   .metricGrid,
+  .adminMenuGrid,
+  .sectionBackBar,
   .ordersSurface,
   .usersPanel,
   .activityLogPanel,
@@ -2434,6 +2525,7 @@ tbody tr:last-child td {
   .quoteBar,
   .rateCards,
   .metricGrid,
+  .adminMenuGrid,
   .inlineActions,
   .tradeChoiceGrid,
   .settingsGrid,

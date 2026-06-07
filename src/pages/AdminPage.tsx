@@ -1,4 +1,5 @@
-import { ClipboardList, Copy, Download, Eye, Lock, LogOut, RefreshCw, ShieldCheck, UserCheck, UsersRound } from "lucide-react";
+import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, RefreshCw, ShieldCheck, SlidersHorizontal, UserCheck, UsersRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
@@ -37,6 +38,8 @@ const rolePermissions: Record<AdminRole, {
   viewer: { canEditSettings: false, canExport: false, canUploadProof: false, canComplete: false, canChangeStatus: false }
 };
 
+type AdminSection = "home" | "orders" | "users" | "settings" | "logs";
+
 export function AdminPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -48,6 +51,7 @@ export function AdminPage() {
   const [toast, setToast] = useState("");
   const [cropTarget, setCropTarget] = useState<{ file: File; type: "upi" | "chain"; index?: number } | null>(null);
   const [previewProof, setPreviewProof] = useState<{ src: string; alt: string } | null>(null);
+  const [activeSection, setActiveSection] = useState<AdminSection>("home");
   const permissions = adminUser ? rolePermissions[adminUser.role] : rolePermissions.viewer;
 
   const activeOrders = useMemo(() => orders.filter((order) => !["Completed", "Cancelled"].includes(order.status)), [orders]);
@@ -95,6 +99,7 @@ export function AdminPage() {
     setLogs(addActivityLog({ staffId: found.staffId, staffName: found.label, role: found.role, action: "Signed in to admin panel" }));
     setUsername("");
     setPassword("");
+    setActiveSection("home");
     setToast(`${found.label} access unlocked`);
   }
 
@@ -261,18 +266,31 @@ export function AdminPage() {
             <Metric label="INR payable" value={money(summary.payable)} />
           </section>
 
-          {permissions.canEditSettings ? (
-          <AdminSettings settings={settings} onCropRequest={setCropTarget} onSave={updateSettings} />
-          ) : (
-            <section className="adminSettings restrictedPanel">
-              <h2>Website Rates & Payment Setup</h2>
-              <p>Your role can view orders, but only Owner can edit rates, UPI, bank, CDM, and seller deposit details.</p>
+          {activeSection === "home" && (
+            <section className="adminMenuGrid">
+              <AdminMenuCard icon={<PackageCheck size={24} />} title="Orders" meta={`${orders.length} orders`} detail="Chats, proof, staff assignment, status, and completion controls." onClick={() => setActiveSection("orders")} />
+              <AdminMenuCard icon={<UsersRound size={24} />} title="Customer Users" meta="Customer registry" detail="Customer profiles, order totals, volume, and quick actions." onClick={() => setActiveSection("users")} />
+              <AdminMenuCard icon={<SlidersHorizontal size={24} />} title="Rates & Payment" meta={permissions.canEditSettings ? "Editable" : "Read only"} detail="Rates, UPI QR, bank accounts, CDM, and blockchain wallets." onClick={() => setActiveSection("settings")} />
+              <AdminMenuCard icon={<ClipboardList size={24} />} title="Activity Log" meta={`${logs.length} entries`} detail="Staff logins, assignments, proof views, status changes, and exports." onClick={() => setActiveSection("logs")} />
             </section>
           )}
 
-          <CustomerUsersSection users={users} orders={orders} onCopyMobile={copyMobile} />
+          {activeSection !== "home" && <SectionBack activeSection={activeSection} onBack={() => setActiveSection("home")} />}
 
-          <section className="ordersSurface">
+          {activeSection === "settings" && (
+            permissions.canEditSettings ? (
+              <AdminSettings settings={settings} onCropRequest={setCropTarget} onSave={updateSettings} />
+            ) : (
+              <section className="adminSettings restrictedPanel">
+                <h2>Website Rates & Payment Setup</h2>
+                <p>Your role can view orders, but only Owner can edit rates, UPI, bank, CDM, and seller deposit details.</p>
+              </section>
+            )
+          )}
+
+          {activeSection === "users" && <CustomerUsersSection users={users} orders={orders} onCopyMobile={copyMobile} />}
+
+          {activeSection === "orders" && <section className="ordersSurface">
             {orders.length === 0 ? (
               <div className="emptyState">No customer orders yet.</div>
             ) : (
@@ -365,8 +383,8 @@ export function AdminPage() {
                 </table>
               </div>
             )}
-          </section>
-          <section className="activityLogPanel">
+          </section>}
+          {activeSection === "logs" && <section className="activityLogPanel">
             <div className="settingsHead">
               <div>
                 <h2>Admin Activity Log</h2>
@@ -390,7 +408,7 @@ export function AdminPage() {
                 ))}
               </div>
             )}
-          </section>
+          </section>}
         </>
       )}
 
@@ -423,6 +441,51 @@ function Metric({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function AdminMenuCard({
+  detail,
+  icon,
+  meta,
+  onClick,
+  title
+}: {
+  detail: string;
+  icon: ReactNode;
+  meta: string;
+  onClick: () => void;
+  title: string;
+}) {
+  return (
+    <button className="adminMenuCard" type="button" onClick={onClick}>
+      <span className="adminMenuIcon">{icon}</span>
+      <span>
+        <strong>{title}</strong>
+        <em>{meta}</em>
+      </span>
+      <small>{detail}</small>
+    </button>
+  );
+}
+
+function SectionBack({ activeSection, onBack }: { activeSection: AdminSection; onBack: () => void }) {
+  const titles: Record<AdminSection, string> = {
+    home: "Admin Dashboard",
+    orders: "Orders",
+    users: "Customer Users",
+    settings: "Rates & Payment",
+    logs: "Activity Log"
+  };
+
+  return (
+    <section className="sectionBackBar">
+      <button className="softButton dark" type="button" onClick={onBack}>
+        <ArrowLeft size={16} />
+        Dashboard
+      </button>
+      <strong>{titles[activeSection]}</strong>
+    </section>
   );
 }
 
