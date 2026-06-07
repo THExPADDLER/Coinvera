@@ -14,7 +14,7 @@ function App() {
   if (path.startsWith("/sell")) return <SellPage />;
   if (path.startsWith("/orders")) return <OrdersPage />;
   if (path.startsWith("/chat")) return <ChatPage />;
-  return path.startsWith("/admin") ? <AdminPage /> : <CustomerPage />;
+  return path.startsWith("/control-room") ? <AdminPage /> : <CustomerPage />;
 }
 
 createRoot(document.getElementById("root")!).render(
