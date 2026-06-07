@@ -78,8 +78,19 @@ export interface BlockchainDeposit {
   qr: string;
 }
 
+export interface BankAccountOption {
+  id: string;
+  label: string;
+  accountName: string;
+  accountNumber: string;
+  ifsc: string;
+  bankName: string;
+}
+
 export interface DeskSettings {
   rates: DeskRates;
   payment: PaymentDetails;
   blockchains: BlockchainDeposit[];
+  accountTransfers: BankAccountOption[];
+  cdmAccounts: BankAccountOption[];
 }

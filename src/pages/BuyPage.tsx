@@ -16,10 +16,14 @@ export function BuyPage() {
   const [network, setNetwork] = useState<Network>(defaultNetwork);
   const [wallet, setWallet] = useState("");
   const [method, setMethod] = useState<PayMethod | null>(null);
+  const [accountId, setAccountId] = useState(settings.accountTransfers[0]?.id || "");
+  const [cdmId, setCdmId] = useState(settings.cdmAccounts[0]?.id || "");
   const [reference, setReference] = useState("");
   const [screenshot, setScreenshot] = useState("");
   const [toast, setToast] = useState("");
   const total = useMemo(() => Number(amount || 0) * settings.rates.buy, [amount, settings.rates.buy]);
+  const selectedAccount = settings.accountTransfers.find((account) => account.id === accountId) || settings.accountTransfers[0];
+  const selectedCdm = settings.cdmAccounts.find((account) => account.id === cdmId) || settings.cdmAccounts[0];
 
   if (!session) return <RequireLogin title="Login required to buy USDT" />;
 
@@ -35,7 +39,7 @@ export function BuyPage() {
       rate: settings.rates.buy,
       network,
       wallet,
-      payment: `${method.toUpperCase()} payment submitted`,
+      payment: `${method.toUpperCase()} payment submitted${method === "account" && selectedAccount ? ` to ${selectedAccount.label}` : ""}${method === "cdm" && selectedCdm ? ` to ${selectedCdm.label}` : ""}`,
       kyc: `Basic account: ${session.fullName}. No KYC verification required in prototype.`,
       paymentMethod: method,
       paymentReference: reference,
@@ -118,12 +122,30 @@ export function BuyPage() {
             )}
 
             {method === "account" && (
-              <BankDetails title="Account transfer details" name={settings.payment.accountName} account={settings.payment.accountNumber} ifsc={settings.payment.ifsc} bank={settings.payment.bankName} />
+              <>
+                <label>
+                  Select account
+                  <select value={accountId} onChange={(event) => setAccountId(event.target.value)}>
+                    {settings.accountTransfers.map((account) => (
+                      <option value={account.id} key={account.id}>{account.label}</option>
+                    ))}
+                  </select>
+                </label>
+                {selectedAccount && <BankDetails title="Account transfer details" name={selectedAccount.accountName} account={selectedAccount.accountNumber} ifsc={selectedAccount.ifsc} bank={selectedAccount.bankName} />}
+              </>
             )}
 
             {method === "cdm" && (
               <>
-                <BankDetails title="CDM cash deposit details" name={settings.payment.cdmName} account={settings.payment.cdmAccountNumber} ifsc={settings.payment.cdmIfsc} bank={settings.payment.cdmBankName} />
+                <label>
+                  Select CDM account
+                  <select value={cdmId} onChange={(event) => setCdmId(event.target.value)}>
+                    {settings.cdmAccounts.map((account) => (
+                      <option value={account.id} key={account.id}>{account.label}</option>
+                    ))}
+                  </select>
+                </label>
+                {selectedCdm && <BankDetails title="CDM cash deposit details" name={selectedCdm.accountName} account={selectedCdm.accountNumber} ifsc={selectedCdm.ifsc} bank={selectedCdm.bankName} />}
                 <div className="warningBox">CDM account accepts cash deposit only. Online transfer to CDM account will be refunded after deduction.</div>
               </>
             )}

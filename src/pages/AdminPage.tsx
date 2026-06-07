@@ -1,11 +1,10 @@
 import { Download, Lock, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
 import { addOrderMessage, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
-import type { AdminRole, BlockchainDeposit, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
+import type { AdminRole, BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
 
 interface AdminUser {
   username: string;
@@ -344,6 +343,44 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
     });
   }
 
+  function setAccountTransfer(index: number, patch: Partial<BankAccountOption>) {
+    setDraft({
+      ...draft,
+      accountTransfers: draft.accountTransfers.map((account, accountIndex) => (accountIndex === index ? { ...account, ...patch } : account))
+    });
+  }
+
+  function addAccountTransfer() {
+    setDraft({
+      ...draft,
+      accountTransfers: [...draft.accountTransfers, { id: `account-${Date.now().toString(36)}`, label: "New Account Transfer", accountName: "", accountNumber: "", ifsc: "", bankName: "" }]
+    });
+  }
+
+  function removeAccountTransfer(index: number) {
+    if (draft.accountTransfers.length <= 1) return;
+    setDraft({ ...draft, accountTransfers: draft.accountTransfers.filter((_, accountIndex) => accountIndex !== index) });
+  }
+
+  function setCdmAccount(index: number, patch: Partial<BankAccountOption>) {
+    setDraft({
+      ...draft,
+      cdmAccounts: draft.cdmAccounts.map((account, accountIndex) => (accountIndex === index ? { ...account, ...patch } : account))
+    });
+  }
+
+  function addCdmAccount() {
+    setDraft({
+      ...draft,
+      cdmAccounts: [...draft.cdmAccounts, { id: `cdm-${Date.now().toString(36)}`, label: "New CDM Account", accountName: "", accountNumber: "", ifsc: "", bankName: "" }]
+    });
+  }
+
+  function removeCdmAccount(index: number) {
+    if (draft.cdmAccounts.length <= 1) return;
+    setDraft({ ...draft, cdmAccounts: draft.cdmAccounts.filter((_, accountIndex) => accountIndex !== index) });
+  }
+
   function uploadQr(file: File | undefined) {
     if (!file) return;
     const reader = new FileReader();
@@ -412,28 +449,73 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
             </div>
           ))}
         </div>
-        <FieldGroup title="Account Transfer">
-          <input value={draft.payment.accountName} onChange={(event) => setPayment("accountName", event.target.value)} placeholder="Account name" />
-          <input value={draft.payment.accountNumber} onChange={(event) => setPayment("accountNumber", event.target.value)} placeholder="Account number" />
-          <input value={draft.payment.ifsc} onChange={(event) => setPayment("ifsc", event.target.value)} placeholder="IFSC" />
-          <input value={draft.payment.bankName} onChange={(event) => setPayment("bankName", event.target.value)} placeholder="Bank name" />
-        </FieldGroup>
-        <FieldGroup title="CDM Cash Deposit">
-          <input value={draft.payment.cdmName} onChange={(event) => setPayment("cdmName", event.target.value)} placeholder="CDM account name" />
-          <input value={draft.payment.cdmAccountNumber} onChange={(event) => setPayment("cdmAccountNumber", event.target.value)} placeholder="CDM account number" />
-          <input value={draft.payment.cdmIfsc} onChange={(event) => setPayment("cdmIfsc", event.target.value)} placeholder="CDM IFSC" />
-          <input value={draft.payment.cdmBankName} onChange={(event) => setPayment("cdmBankName", event.target.value)} placeholder="CDM bank name" />
-        </FieldGroup>
+        <BankOptionManager
+          title="Account Transfer Options"
+          addLabel="Add Account"
+          options={draft.accountTransfers}
+          onAdd={addAccountTransfer}
+          onRemove={removeAccountTransfer}
+          onChange={setAccountTransfer}
+        />
+        <BankOptionManager
+          title="CDM Cash Deposit Options"
+          addLabel="Add CDM Account"
+          options={draft.cdmAccounts}
+          onAdd={addCdmAccount}
+          onRemove={removeCdmAccount}
+          onChange={setCdmAccount}
+        />
       </div>
     </section>
   );
 }
 
-function FieldGroup({ children, title }: { children: ReactNode; title: string }) {
+function BankOptionManager({
+  addLabel,
+  onAdd,
+  onChange,
+  onRemove,
+  options,
+  title
+}: {
+  addLabel: string;
+  onAdd: () => void;
+  onChange: (index: number, patch: Partial<BankAccountOption>) => void;
+  onRemove: (index: number) => void;
+  options: BankAccountOption[];
+  title: string;
+}) {
   return (
-    <div className="fieldGroup">
-      <strong>{title}</strong>
-      {children}
+    <div className="chainManager">
+      <div className="chainManagerHead">
+        <strong>{title}</strong>
+        <button type="button" onClick={onAdd}>{addLabel}</button>
+      </div>
+      {options.map((option, index) => (
+        <div className="chainCard" key={option.id}>
+          <label>
+            Label
+            <input value={option.label} onChange={(event) => onChange(index, { label: event.target.value })} placeholder="Display label" />
+          </label>
+          <label>
+            Account name
+            <input value={option.accountName} onChange={(event) => onChange(index, { accountName: event.target.value })} placeholder="Account name" />
+          </label>
+          <label>
+            Account number
+            <input value={option.accountNumber} onChange={(event) => onChange(index, { accountNumber: event.target.value })} placeholder="Account number" />
+          </label>
+          <label>
+            IFSC
+            <input value={option.ifsc} onChange={(event) => onChange(index, { ifsc: event.target.value.toUpperCase() })} placeholder="IFSC" />
+          </label>
+          <label>
+            Bank name
+            <input value={option.bankName} onChange={(event) => onChange(index, { bankName: event.target.value })} placeholder="Bank name" />
+          </label>
+          <button type="button" onClick={() => onRemove(index)} disabled={options.length <= 1}>Remove</button>
+        </div>
+      ))}
     </div>
   );
 }

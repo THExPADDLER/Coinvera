@@ -1,4 +1,4 @@
-import type { BlockchainDeposit, DeskOrder, DeskSettings, OrderChatMessage, OrderStatus, TradeMode } from "./types";
+import type { BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderChatMessage, OrderStatus, TradeMode } from "./types";
 
 export const defaultBlockchains: BlockchainDeposit[] = [
   {
@@ -18,6 +18,28 @@ export const defaultBlockchains: BlockchainDeposit[] = [
     name: "USDT ERC20",
     wallet: "ERC20-COINVERA-USDT-RECEIVING-WALLET",
     qr: ""
+  }
+];
+
+export const defaultAccountTransfers: BankAccountOption[] = [
+  {
+    id: "account-primary",
+    label: "Primary Account Transfer",
+    accountName: "Coinvera Exchange Desk",
+    accountNumber: "123456789012",
+    ifsc: "HDFC0000001",
+    bankName: "HDFC Bank"
+  }
+];
+
+export const defaultCdmAccounts: BankAccountOption[] = [
+  {
+    id: "cdm-primary",
+    label: "Primary CDM Cash Deposit",
+    accountName: "Coinvera Cash Deposit",
+    accountNumber: "987654321098",
+    ifsc: "ICIC0000001",
+    bankName: "ICICI Bank"
   }
 ];
 
@@ -42,7 +64,9 @@ export const defaultSettings: DeskSettings = {
     usdtReceivingNetwork: "USDT TRC20",
     usdtReceivingQr: ""
   },
-  blockchains: defaultBlockchains
+  blockchains: defaultBlockchains,
+  accountTransfers: defaultAccountTransfers,
+  cdmAccounts: defaultCdmAccounts
 };
 
 export const storageKey = "usdt-inr-desk-orders";
@@ -88,10 +112,38 @@ export function loadDeskSettings(): DeskSettings {
             },
             ...defaultBlockchains.slice(1)
           ];
+    const accountTransfers =
+      stored.accountTransfers && stored.accountTransfers.length > 0
+        ? stored.accountTransfers
+        : [
+            {
+              id: "account-primary",
+              label: "Primary Account Transfer",
+              accountName: storedPayment.accountName,
+              accountNumber: storedPayment.accountNumber,
+              ifsc: storedPayment.ifsc,
+              bankName: storedPayment.bankName
+            }
+          ];
+    const cdmAccounts =
+      stored.cdmAccounts && stored.cdmAccounts.length > 0
+        ? stored.cdmAccounts
+        : [
+            {
+              id: "cdm-primary",
+              label: "Primary CDM Cash Deposit",
+              accountName: storedPayment.cdmName,
+              accountNumber: storedPayment.cdmAccountNumber,
+              ifsc: storedPayment.cdmIfsc,
+              bankName: storedPayment.cdmBankName
+            }
+          ];
     return {
       rates: { ...defaultSettings.rates, ...stored.rates },
       payment: storedPayment,
-      blockchains
+      blockchains,
+      accountTransfers,
+      cdmAccounts
     };
   } catch {
     return defaultSettings;
