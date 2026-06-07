@@ -5,7 +5,7 @@ import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
 import { addOrderMessage, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
-import type { AdminRole, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
+import type { AdminRole, BlockchainDeposit, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
 
 interface AdminUser {
   username: string;
@@ -321,6 +321,29 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
     setDraft({ ...draft, payment: { ...draft.payment, [key]: value } });
   }
 
+  function setBlockchain(index: number, patch: Partial<BlockchainDeposit>) {
+    setDraft({
+      ...draft,
+      blockchains: draft.blockchains.map((chain, chainIndex) => (chainIndex === index ? { ...chain, ...patch } : chain))
+    });
+  }
+
+  function addBlockchain() {
+    const id = `chain-${Date.now().toString(36)}`;
+    setDraft({
+      ...draft,
+      blockchains: [...draft.blockchains, { id, name: "New USDT Chain", wallet: "", qr: "" }]
+    });
+  }
+
+  function removeBlockchain(index: number) {
+    if (draft.blockchains.length <= 1) return;
+    setDraft({
+      ...draft,
+      blockchains: draft.blockchains.filter((_, chainIndex) => chainIndex !== index)
+    });
+  }
+
   function uploadQr(file: File | undefined) {
     if (!file) return;
     const reader = new FileReader();
@@ -328,10 +351,10 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
     reader.readAsDataURL(file);
   }
 
-  function uploadSellerQr(file: File | undefined) {
+  function uploadSellerQr(index: number, file: File | undefined) {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setPayment("usdtReceivingQr", String(reader.result || ""));
+    reader.onload = () => setBlockchain(index, { qr: String(reader.result || "") });
     reader.readAsDataURL(file);
   }
 
@@ -370,22 +393,33 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
           Upload UPI QR barcode
           <input type="file" accept="image/*" onChange={(event) => uploadQr(event.target.files?.[0])} />
         </label>
-        <label className="wide">
-          USDT receiving wallet for sellers
-          <input value={draft.payment.usdtReceivingWallet} onChange={(event) => setPayment("usdtReceivingWallet", event.target.value)} placeholder="Wallet address shown on sell page" />
-        </label>
-        <label>
-          Seller deposit blockchain name
-          <input value={draft.payment.usdtReceivingNetwork} onChange={(event) => setPayment("usdtReceivingNetwork", event.target.value)} placeholder="Example: USDT TRC20" />
-        </label>
-        <label>
-          Seller deposit QR image URL
-          <input value={draft.payment.usdtReceivingQr} onChange={(event) => setPayment("usdtReceivingQr", event.target.value)} placeholder="Paste wallet QR image URL or data URL" />
-        </label>
-        <label className="wide">
-          Upload seller deposit QR
-          <input type="file" accept="image/*" onChange={(event) => uploadSellerQr(event.target.files?.[0])} />
-        </label>
+        <div className="chainManager">
+          <div className="chainManagerHead">
+            <strong>Seller Blockchain Deposit Wallets</strong>
+            <button type="button" onClick={addBlockchain}>Add Blockchain</button>
+          </div>
+          {draft.blockchains.map((chain, index) => (
+            <div className="chainCard" key={chain.id}>
+              <label>
+                Blockchain name
+                <input value={chain.name} onChange={(event) => setBlockchain(index, { name: event.target.value })} placeholder="Example: USDT TRC20" />
+              </label>
+              <label>
+                Wallet address
+                <input value={chain.wallet} onChange={(event) => setBlockchain(index, { wallet: event.target.value })} placeholder="Deposit wallet address" />
+              </label>
+              <label>
+                QR image URL
+                <input value={chain.qr} onChange={(event) => setBlockchain(index, { qr: event.target.value })} placeholder="Paste QR image URL or data URL" />
+              </label>
+              <label>
+                Upload QR
+                <input type="file" accept="image/*" onChange={(event) => uploadSellerQr(index, event.target.files?.[0])} />
+              </label>
+              <button type="button" onClick={() => removeBlockchain(index)} disabled={draft.blockchains.length <= 1}>Remove</button>
+            </div>
+          ))}
+        </div>
         <FieldGroup title="Account Transfer">
           <input value={draft.payment.accountName} onChange={(event) => setPayment("accountName", event.target.value)} placeholder="Account name" />
           <input value={draft.payment.accountNumber} onChange={(event) => setPayment("accountNumber", event.target.value)} placeholder="Account number" />

@@ -11,8 +11,9 @@ type PayMethod = "upi" | "account" | "cdm";
 export function BuyPage() {
   const session = loadCustomerSession();
   const settings = loadDeskSettings();
+  const defaultNetwork = settings.blockchains[0]?.name || "USDT TRC20";
   const [amount, setAmount] = useState("");
-  const [network, setNetwork] = useState<Network>("TRC20");
+  const [network, setNetwork] = useState<Network>(defaultNetwork);
   const [wallet, setWallet] = useState("");
   const [method, setMethod] = useState<PayMethod | null>(null);
   const [reference, setReference] = useState("");
@@ -69,10 +70,9 @@ export function BuyPage() {
             <label>
               Blockchain
               <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
-                <option value="TRC20">TRC20</option>
-                <option value="ERC20">ERC20</option>
-                <option value="BEP20">BEP20</option>
-                <option value="Polygon">Polygon</option>
+                {settings.blockchains.map((chain) => (
+                  <option value={chain.name} key={chain.id}>{chain.name}</option>
+                ))}
               </select>
             </label>
             <label className="wide">

@@ -1405,6 +1405,58 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
+.chainManager {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8fbfa;
+}
+
+.chainManagerHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.chainManagerHead strong {
+  font-size: 18px;
+}
+
+.chainManagerHead button,
+.chainCard button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.chainCard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dce9e3;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.chainCard button {
+  width: fit-content;
+  align-self: end;
+}
+
+.chainCard button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .adminShell {
   min-height: 100vh;
   padding-bottom: 48px;
@@ -1828,8 +1880,13 @@ tbody tr:last-child td {
   .paymentTabs,
   .accountGrid,
   .chatComposer,
-  .credentialGrid {
+  .credentialGrid,
+  .chainCard {
     grid-template-columns: 1fr;
+  }
+
+  .chainManagerHead {
+    display: grid;
   }
 
   .chatShell {

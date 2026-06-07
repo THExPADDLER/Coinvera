@@ -12,7 +12,7 @@ export type OrderStatus =
   | "Completed"
   | "Cancelled";
 
-export type Network = "TRC20" | "ERC20" | "BEP20" | "Polygon";
+export type Network = string;
 
 export type AdminRole = "owner" | "manager" | "operator" | "viewer";
 
@@ -71,7 +71,15 @@ export interface PaymentDetails {
   usdtReceivingQr: string;
 }
 
+export interface BlockchainDeposit {
+  id: string;
+  name: string;
+  wallet: string;
+  qr: string;
+}
+
 export interface DeskSettings {
   rates: DeskRates;
   payment: PaymentDetails;
+  blockchains: BlockchainDeposit[];
 }

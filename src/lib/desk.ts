@@ -1,4 +1,25 @@
-import type { DeskOrder, DeskSettings, OrderChatMessage, OrderStatus, TradeMode } from "./types";
+import type { BlockchainDeposit, DeskOrder, DeskSettings, OrderChatMessage, OrderStatus, TradeMode } from "./types";
+
+export const defaultBlockchains: BlockchainDeposit[] = [
+  {
+    id: "trc20",
+    name: "USDT TRC20",
+    wallet: "TRC20-COINVERA-USDT-RECEIVING-WALLET",
+    qr: ""
+  },
+  {
+    id: "bep20",
+    name: "USDT BEP20 / BSC",
+    wallet: "BEP20-COINVERA-USDT-RECEIVING-WALLET",
+    qr: ""
+  },
+  {
+    id: "erc20",
+    name: "USDT ERC20",
+    wallet: "ERC20-COINVERA-USDT-RECEIVING-WALLET",
+    qr: ""
+  }
+];
 
 export const defaultSettings: DeskSettings = {
   rates: {
@@ -20,7 +41,8 @@ export const defaultSettings: DeskSettings = {
     usdtReceivingWallet: "TRC20-COINVERA-USDT-RECEIVING-WALLET",
     usdtReceivingNetwork: "USDT TRC20",
     usdtReceivingQr: ""
-  }
+  },
+  blockchains: defaultBlockchains
 };
 
 export const storageKey = "usdt-inr-desk-orders";
@@ -53,9 +75,23 @@ export function saveOrders(orders: DeskOrder[]): void {
 export function loadDeskSettings(): DeskSettings {
   try {
     const stored = JSON.parse(localStorage.getItem(settingsStorageKey) || "{}") as Partial<DeskSettings>;
+    const storedPayment = { ...defaultSettings.payment, ...stored.payment };
+    const blockchains =
+      stored.blockchains && stored.blockchains.length > 0
+        ? stored.blockchains
+        : [
+            {
+              id: "trc20",
+              name: storedPayment.usdtReceivingNetwork,
+              wallet: storedPayment.usdtReceivingWallet,
+              qr: storedPayment.usdtReceivingQr
+            },
+            ...defaultBlockchains.slice(1)
+          ];
     return {
       rates: { ...defaultSettings.rates, ...stored.rates },
-      payment: { ...defaultSettings.payment, ...stored.payment }
+      payment: storedPayment,
+      blockchains
     };
   } catch {
     return defaultSettings;

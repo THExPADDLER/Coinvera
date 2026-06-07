@@ -9,8 +9,9 @@ import type { Network } from "../lib/types";
 export function SellPage() {
   const session = loadCustomerSession();
   const settings = loadDeskSettings();
+  const defaultNetwork = settings.blockchains[0]?.name || "USDT TRC20";
   const [amount, setAmount] = useState("");
-  const [network, setNetwork] = useState<Network>("TRC20");
+  const [network, setNetwork] = useState<Network>(defaultNetwork);
   const [txHash, setTxHash] = useState("");
   const [payoutMode, setPayoutMode] = useState<"upi" | "account">("upi");
   const [upiId, setUpiId] = useState("");
@@ -21,6 +22,7 @@ export function SellPage() {
   const [screenshot, setScreenshot] = useState("");
   const [toast, setToast] = useState("");
   const total = useMemo(() => Number(amount || 0) * settings.rates.sell, [amount, settings.rates.sell]);
+  const selectedChain = settings.blockchains.find((chain) => chain.name === network) || settings.blockchains[0];
 
   if (!session) {
     return (
@@ -55,7 +57,7 @@ export function SellPage() {
       amount: Number(amount),
       rate: settings.rates.sell,
       network,
-      wallet: `${settings.payment.usdtReceivingWallet} | TX: ${txHash}`,
+      wallet: `${selectedChain?.wallet || ""} | TX: ${txHash}`,
       payment: payoutDetails,
       kyc: `Basic account: ${session.fullName}. No KYC verification required in prototype.`,
       paymentMethod: payoutMode,
@@ -80,11 +82,11 @@ export function SellPage() {
           <div className="walletDisplay">
             <span>Coinvera receiving wallet</span>
             <div className="sellerQrBox">
-              {settings.payment.usdtReceivingQr ? <img src={settings.payment.usdtReceivingQr} alt="Coinvera seller deposit QR" /> : <QrCode size={92} />}
+              {selectedChain?.qr ? <img src={selectedChain.qr} alt={`${selectedChain.name} seller deposit QR`} /> : <QrCode size={92} />}
             </div>
-            <strong>{settings.payment.usdtReceivingWallet}</strong>
-            <small>Blockchain: {settings.payment.usdtReceivingNetwork}</small>
-            <button type="button" onClick={() => navigator.clipboard?.writeText(settings.payment.usdtReceivingWallet)}>
+            <strong>{selectedChain?.wallet || "Wallet not configured"}</strong>
+            <small>Blockchain: {selectedChain?.name || network}</small>
+            <button type="button" onClick={() => navigator.clipboard?.writeText(selectedChain?.wallet || "")}>
               <Copy size={15} />
               Copy
             </button>
@@ -99,10 +101,9 @@ export function SellPage() {
             <label>
               Blockchain
               <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
-                <option value="TRC20">TRC20</option>
-                <option value="ERC20">ERC20</option>
-                <option value="BEP20">BEP20</option>
-                <option value="Polygon">Polygon</option>
+                {settings.blockchains.map((chain) => (
+                  <option value={chain.name} key={chain.id}>{chain.name}</option>
+                ))}
               </select>
             </label>
             <label className="wide">
