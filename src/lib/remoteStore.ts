@@ -2,7 +2,7 @@ import { collection, doc, getDocs, limit, orderBy, query, setDoc } from "firebas
 import { getFirebaseServices } from "./firebase";
 import type { AdminActivityLog, CustomerUser, DeskOrder, DeskSettings } from "./types";
 
-const root = "coinveraDesk";
+const root = "CoinveraData";
 const storageKey = "usdt-inr-desk-orders";
 const settingsStorageKey = "coinvera-desk-settings";
 const activityLogStorageKey = "coinvera-admin-activity-log";
