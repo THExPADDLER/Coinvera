@@ -1,6 +1,7 @@
 import { ArrowLeft, Landmark, QrCode, Upload, Wallet } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
+import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
 import { createOrder, loadDeskSettings, money } from "../lib/desk";
@@ -20,6 +21,7 @@ export function BuyPage() {
   const [cdmId, setCdmId] = useState(settings.cdmAccounts[0]?.id || "");
   const [reference, setReference] = useState("");
   const [screenshot, setScreenshot] = useState("");
+  const [previewQr, setPreviewQr] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const total = useMemo(() => Number(amount || 0) * settings.rates.buy, [amount, settings.rates.buy]);
   const selectedAccount = settings.accountTransfers.find((account) => account.id === accountId) || settings.accountTransfers[0];
@@ -113,9 +115,9 @@ export function BuyPage() {
 
             {method === "upi" && (
               <div className="payDetails">
-                <div className="qrBox">
+                <button className="qrBox clickableQr" type="button" disabled={!settings.payment.upiQr} onClick={() => settings.payment.upiQr && setPreviewQr(settings.payment.upiQr)}>
                   {settings.payment.upiQr ? <img src={settings.payment.upiQr} alt="UPI QR code" /> : <QrCode size={86} />}
-                </div>
+                </button>
                 <strong>{settings.payment.holderName}</strong>
                 <span>{settings.payment.upiId}</span>
               </div>
@@ -164,6 +166,7 @@ export function BuyPage() {
           </form>
         </div>
       )}
+      {previewQr && <ImagePreviewModal alt="UPI QR code preview" src={previewQr} onClose={() => setPreviewQr(null)} />}
       <Toast message={toast} onDone={() => setToast("")} />
     </main>
   );

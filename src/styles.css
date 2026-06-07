@@ -985,6 +985,22 @@ textarea:focus {
   object-fit: contain;
 }
 
+button.sellerQrBox,
+button.qrBox {
+  padding: 0;
+  cursor: zoom-in;
+}
+
+button.sellerQrBox:disabled,
+button.qrBox:disabled {
+  cursor: default;
+}
+
+.clickableQr:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(15, 42, 37, 0.14);
+}
+
 .walletDisplay span {
   color: var(--muted);
   font-size: 12px;
@@ -1110,6 +1126,54 @@ textarea:focus {
   padding: 20px;
   display: grid;
   gap: 14px;
+}
+
+.cropModal {
+  width: min(560px, 100%);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  border-radius: 16px;
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.cropCanvas {
+  width: min(420px, 100%);
+  aspect-ratio: 1;
+  justify-self: center;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.cropControls {
+  display: grid;
+  gap: 10px;
+}
+
+.cropControls label {
+  display: grid;
+  gap: 7px;
+}
+
+.imagePreviewModal {
+  width: min(620px, calc(100% - 32px));
+  position: relative;
+  padding: 22px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.imagePreviewModal img {
+  width: 100%;
+  max-height: 76vh;
+  object-fit: contain;
+  display: block;
+  border-radius: 12px;
 }
 
 .paymentHeader,

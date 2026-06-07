@@ -1,6 +1,7 @@
 import { ArrowLeft, Copy, Landmark, QrCode, Upload } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
+import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
 import { createOrder, loadDeskSettings, money } from "../lib/desk";
@@ -20,6 +21,7 @@ export function SellPage() {
   const [ifsc, setIfsc] = useState("");
   const [bankName, setBankName] = useState("");
   const [screenshot, setScreenshot] = useState("");
+  const [previewQr, setPreviewQr] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const total = useMemo(() => Number(amount || 0) * settings.rates.sell, [amount, settings.rates.sell]);
   const selectedChain = settings.blockchains.find((chain) => chain.name === network) || settings.blockchains[0];
@@ -81,9 +83,9 @@ export function SellPage() {
           <p>Send USDT to Coinvera's receiving wallet, enter the amount sent, then choose how you want to receive INR: UPI or account transfer.</p>
           <div className="walletDisplay">
             <span>Coinvera receiving wallet</span>
-            <div className="sellerQrBox">
+            <button className="sellerQrBox clickableQr" type="button" disabled={!selectedChain?.qr} onClick={() => selectedChain?.qr && setPreviewQr(selectedChain.qr)}>
               {selectedChain?.qr ? <img src={selectedChain.qr} alt={`${selectedChain.name} seller deposit QR`} /> : <QrCode size={92} />}
-            </div>
+            </button>
             <strong>{selectedChain?.wallet || "Wallet not configured"}</strong>
             <small>Blockchain: {selectedChain?.name || network}</small>
             <button type="button" onClick={() => navigator.clipboard?.writeText(selectedChain?.wallet || "")}>
@@ -168,6 +170,7 @@ export function SellPage() {
         </section>
       </section>
       <Toast message={toast} onDone={() => setToast("")} />
+      {previewQr && <ImagePreviewModal alt="Seller deposit QR preview" src={previewQr} onClose={() => setPreviewQr(null)} />}
     </main>
   );
 }

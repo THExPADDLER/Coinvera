@@ -5,6 +5,7 @@ import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
 import { addOrderMessage, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
 import type { AdminRole, BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
+import { ImageCropModal } from "../components/ImageCropModal";
 
 interface AdminUser {
   username: string;
@@ -39,6 +40,7 @@ export function AdminPage() {
   const [orders, setOrders] = useState<DeskOrder[]>([]);
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
+  const [cropTarget, setCropTarget] = useState<{ file: File; type: "upi" | "chain"; index?: number } | null>(null);
   const permissions = adminUser ? rolePermissions[adminUser.role] : rolePermissions.viewer;
 
   const activeOrders = useMemo(() => orders.filter((order) => !["Completed", "Cancelled"].includes(order.status)), [orders]);
@@ -205,7 +207,7 @@ export function AdminPage() {
           </section>
 
           {permissions.canEditSettings ? (
-            <AdminSettings settings={settings} onSave={updateSettings} />
+          <AdminSettings settings={settings} onCropRequest={setCropTarget} onSave={updateSettings} />
           ) : (
             <section className="adminSettings restrictedPanel">
               <h2>Website Rates & Payment Setup</h2>
@@ -294,6 +296,23 @@ export function AdminPage() {
       )}
 
       <Toast message={toast} onDone={() => setToast("")} />
+      {cropTarget && (
+        <ImageCropModal
+          file={cropTarget.file}
+          onCancel={() => setCropTarget(null)}
+          onSave={(dataUrl) => {
+            if (cropTarget.type === "upi") {
+              updateSettings({ ...settings, payment: { ...settings.payment, upiQr: dataUrl } });
+            } else if (typeof cropTarget.index === "number") {
+              updateSettings({
+                ...settings,
+                blockchains: settings.blockchains.map((chain, index) => (index === cropTarget.index ? { ...chain, qr: dataUrl } : chain))
+              });
+            }
+            setCropTarget(null);
+          }}
+        />
+      )}
     </main>
   );
 }
@@ -307,7 +326,15 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (settings: DeskSettings) => void }) {
+function AdminSettings({
+  onCropRequest,
+  onSave,
+  settings
+}: {
+  onCropRequest: (target: { file: File; type: "upi" | "chain"; index?: number }) => void;
+  onSave: (settings: DeskSettings) => void;
+  settings: DeskSettings;
+}) {
   const [draft, setDraft] = useState(settings);
 
   useEffect(() => setDraft(settings), [settings]);
@@ -381,20 +408,6 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
     setDraft({ ...draft, cdmAccounts: draft.cdmAccounts.filter((_, accountIndex) => accountIndex !== index) });
   }
 
-  function uploadQr(file: File | undefined) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPayment("upiQr", String(reader.result || ""));
-    reader.readAsDataURL(file);
-  }
-
-  function uploadSellerQr(index: number, file: File | undefined) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setBlockchain(index, { qr: String(reader.result || "") });
-    reader.readAsDataURL(file);
-  }
-
   return (
     <section className="adminSettings">
       <div className="settingsHead">
@@ -424,7 +437,7 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
         </label>
         <label className="wide">
           Upload UPI QR barcode
-          <input type="file" accept="image/*" onChange={(event) => uploadQr(event.target.files?.[0])} />
+          <input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && onCropRequest({ file: event.target.files[0], type: "upi" })} />
         </label>
         <div className="chainManager">
           <div className="chainManagerHead">
@@ -443,7 +456,7 @@ function AdminSettings({ settings, onSave }: { settings: DeskSettings; onSave: (
               </label>
               <label>
                 Upload QR
-                <input type="file" accept="image/*" onChange={(event) => uploadSellerQr(index, event.target.files?.[0])} />
+                <input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && onCropRequest({ file: event.target.files[0], type: "chain", index })} />
               </label>
               <button type="button" onClick={() => removeBlockchain(index)} disabled={draft.blockchains.length <= 1}>Remove</button>
             </div>
