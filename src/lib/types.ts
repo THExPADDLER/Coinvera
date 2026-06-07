@@ -2,7 +2,9 @@ export type TradeMode = "buy" | "sell";
 
 export type OrderStatus =
   | "Awaiting INR"
+  | "Awaiting Payment"
   | "Awaiting USDT"
+  | "USDT Submitted"
   | "Payment Submitted"
   | "Processing"
   | "INR Received"

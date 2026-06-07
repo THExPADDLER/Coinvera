@@ -74,8 +74,8 @@ export const settingsStorageKey = "coinvera-desk-settings";
 export const orderTtlMs = 30 * 60 * 1000;
 
 export const statusFlow: Record<TradeMode, OrderStatus[]> = {
-  buy: ["Processing", "INR Received", "USDT Released", "Completed", "Cancelled"],
-  sell: ["USDT Received", "INR Paid", "Completed", "Cancelled"]
+  buy: ["Awaiting Payment", "Payment Submitted", "Processing", "INR Received", "USDT Released", "Completed", "Cancelled"],
+  sell: ["Awaiting USDT", "USDT Submitted", "Processing", "USDT Received", "INR Paid", "Completed", "Cancelled"]
 };
 
 export function loadOrders(): DeskOrder[] {
@@ -188,7 +188,7 @@ export function createOrder(input: Omit<DeskOrder, "id" | "createdAt" | "inr" | 
     createdAt: createdAt.toISOString(),
     expiresAt: new Date(createdAt.getTime() + orderTtlMs).toISOString(),
     inr: input.amount * input.rate,
-    status: input.status ?? (input.mode === "buy" ? "Awaiting INR" : "Awaiting USDT"),
+    status: input.status ?? (input.mode === "buy" ? "Awaiting Payment" : "Awaiting USDT"),
     customerConfirmed: false,
     adminConfirmed: false,
     chat: [
@@ -210,7 +210,8 @@ function normalizeOrders(orders: DeskOrder[]): DeskOrder[] {
   const now = Date.now();
   return orders.map((order) => {
     const expiresAt = order.expiresAt || new Date(new Date(order.createdAt).getTime() + orderTtlMs).toISOString();
-    const shouldCancel = !["Completed", "Cancelled"].includes(order.status) && new Date(expiresAt).getTime() <= now;
+    const customerProofSubmitted = Boolean(order.paymentScreenshot);
+    const shouldCancel = !customerProofSubmitted && !["Completed", "Cancelled"].includes(order.status) && new Date(expiresAt).getTime() <= now;
     const expiryMessageExists = (order.chat || []).some((message) => message.text.includes("cancelled automatically after 30 minutes"));
     return {
       ...order,

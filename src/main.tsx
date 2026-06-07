@@ -4,6 +4,7 @@ import { AdminPage } from "./pages/AdminPage";
 import { BuyPage } from "./pages/BuyPage";
 import { ChatPage } from "./pages/ChatPage";
 import { CustomerPage } from "./pages/CustomerPage";
+import { MessagesPage } from "./pages/MessagesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { SellPage } from "./pages/SellPage";
@@ -14,6 +15,7 @@ function App() {
   if (path.startsWith("/buy")) return <BuyPage />;
   if (path.startsWith("/sell")) return <SellPage />;
   if (path.startsWith("/orders")) return <OrdersPage />;
+  if (path.startsWith("/messages")) return <MessagesPage />;
   if (path.startsWith("/chat")) return <ChatPage />;
   if (path.startsWith("/control-room")) return <AdminPage />;
   if (path.startsWith("/admin")) return <NotFoundPage />;

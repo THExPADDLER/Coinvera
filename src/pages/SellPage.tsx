@@ -5,6 +5,7 @@ import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
 import { createOrder, loadDeskSettings, money } from "../lib/desk";
+import { fileToDataUrl } from "../lib/files";
 import type { Network } from "../lib/types";
 
 export function SellPage() {
@@ -65,7 +66,7 @@ export function SellPage() {
       paymentMethod: payoutMode,
       paymentReference: txHash,
       paymentScreenshot: screenshot,
-      status: "Awaiting USDT"
+      status: "USDT Submitted"
     });
     setToast(`${order.id} created. Opening order chat.`);
     window.setTimeout(() => {
@@ -162,9 +163,17 @@ export function SellPage() {
             <label className="uploadLine wide">
               <Upload size={18} />
               Upload USDT transfer screenshot
-              <input type="file" accept="image/*" onChange={(event) => setScreenshot(event.target.files?.[0]?.name || "")} required />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (file) setScreenshot(await fileToDataUrl(file));
+                }}
+                required
+              />
             </label>
-            {screenshot && <small className="wide">Uploaded: {screenshot}</small>}
+            {screenshot && <small className="wide">Screenshot uploaded</small>}
             <button className="primaryButton wide" type="submit">Submit Sell Request</button>
           </form>
         </section>

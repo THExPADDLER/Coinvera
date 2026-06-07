@@ -1,10 +1,10 @@
-import { ArrowLeft, CheckCircle2, Clock, Image as ImageIcon, Send } from "lucide-react";
+import { ArrowLeft, Clock, Image as ImageIcon, LockKeyhole, Send } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
-import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
-import { addOrderMessage, loadOrders, money, updateOrder, usdt } from "../lib/desk";
+import { addOrderMessage, loadOrders, money, usdt } from "../lib/desk";
+import { isImageData } from "../lib/files";
 import type { DeskOrder } from "../lib/types";
 
 export function ChatPage() {
@@ -13,9 +13,9 @@ export function ChatPage() {
   const session = loadCustomerSession();
   const [orders, setOrders] = useState<DeskOrder[]>([]);
   const [text, setText] = useState("");
-  const [toast, setToast] = useState("");
   const [tick, setTick] = useState(Date.now());
   const order = useMemo(() => orders.find((item) => item.id === orderId), [orders, orderId]);
+  const chatClosed = Boolean(order && ["Completed", "Cancelled"].includes(order.status));
 
   useEffect(() => {
     const sync = () => setOrders(loadOrders());
@@ -43,16 +43,9 @@ export function ChatPage() {
 
   function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!order || !text.trim()) return;
+    if (!order || chatClosed || !text.trim()) return;
     setOrders(addOrderMessage(order.id, { sender: isAdminView ? "admin" : "customer", text: text.trim() }));
     setText("");
-  }
-
-  function confirmReceived() {
-    if (!order) return;
-    updateOrder(order.id, { customerConfirmed: true });
-    setOrders(addOrderMessage(order.id, { sender: "customer", text: "I confirm that I have received what I paid for." }));
-    setToast("Confirmation submitted");
   }
 
   if (!session && !isAdminView) {
@@ -103,11 +96,11 @@ export function ChatPage() {
           </div>
           <ProofBox title="Customer proof" proof={order.paymentScreenshot} />
           <ProofBox title="Coinvera proof" proof={order.adminProof} />
-          {!isAdminView && (
-            <button className="primaryButton" type="button" onClick={confirmReceived} disabled={order.customerConfirmed || order.status === "Cancelled"}>
-              <CheckCircle2 size={18} />
-              {order.customerConfirmed ? "Confirmed Received" : "I have received"}
-            </button>
+          {chatClosed && (
+            <div className={`finalChatState ${order.status === "Completed" ? "success" : "danger"}`}>
+              <LockKeyhole size={18} />
+              {order.status === "Completed" ? "Order completed by Coinvera staff. Chat closed successfully." : "Order cancelled. Chat is closed."}
+            </div>
           )}
         </aside>
 
@@ -123,7 +116,7 @@ export function ChatPage() {
             ))}
           </div>
           <form className="chatComposer" onSubmit={sendMessage}>
-            <input value={text} onChange={(event) => setText(event.target.value)} placeholder="Type message..." />
+            <input value={text} onChange={(event) => setText(event.target.value)} disabled={chatClosed} placeholder={chatClosed ? "Chat closed" : "Type message..."} />
             <button className="primaryButton" type="submit">
               <Send size={17} />
               Send
@@ -131,7 +124,6 @@ export function ChatPage() {
           </form>
         </section>
       </section>
-      <Toast message={toast} onDone={() => setToast("")} />
     </main>
   );
 }
@@ -140,7 +132,15 @@ function ProofBox({ proof, title }: { proof?: string; title: string }) {
   return (
     <div className="proofBox">
       <span>{title}</span>
-      {proof ? <strong><ImageIcon size={16} /> {proof}</strong> : <small>Not uploaded yet</small>}
+      {proof ? (
+        isImageData(proof) ? (
+          <img className="proofThumb" src={proof} alt={title} />
+        ) : (
+          <strong><ImageIcon size={16} /> {proof}</strong>
+        )
+      ) : (
+        <small>Not uploaded yet</small>
+      )}
     </div>
   );
 }

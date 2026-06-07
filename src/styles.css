@@ -167,6 +167,24 @@ button {
   flex-wrap: wrap;
 }
 
+.iconButton {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: inline-grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(4, 13, 12, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.iconButton:hover {
+  transform: translateY(-1px);
+  background: rgba(4, 13, 12, 0.94);
+}
+
 .softButton,
 .primaryButton {
   min-height: 44px;
@@ -1366,6 +1384,38 @@ button.qrBox:disabled {
   overflow-wrap: anywhere;
 }
 
+.proofThumb {
+  width: 100%;
+  max-height: 190px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.finalChatState {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.finalChatState.success {
+  color: #275d3a;
+  background: #e5f6eb;
+  border: 1px solid #c5ead2;
+}
+
+.finalChatState.danger {
+  color: var(--rose);
+  background: #fae7ed;
+  border: 1px solid #f0c4cf;
+}
+
 .chatPanel {
   min-height: 620px;
   display: grid;
@@ -1430,6 +1480,64 @@ button.qrBox:disabled {
   gap: 10px;
   border-top: 1px solid var(--line);
   background: #f8fbfa;
+}
+
+.chatComposer input:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.messageDayList {
+  display: grid;
+  gap: 18px;
+}
+
+.messageDay {
+  display: grid;
+  gap: 10px;
+}
+
+.messageDay h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 22px;
+}
+
+.messageThreads {
+  display: grid;
+  gap: 10px;
+}
+
+.messageThread {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 42, 37, 0.06);
+  display: grid;
+  gap: 8px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.messageThread:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 38px rgba(15, 42, 37, 0.1);
+}
+
+.messageThread div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.messageThread span,
+.messageThread p {
+  color: var(--muted);
+}
+
+.messageThread p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .adminSettings {

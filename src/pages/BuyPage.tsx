@@ -5,6 +5,7 @@ import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
 import { createOrder, loadDeskSettings, money } from "../lib/desk";
+import { fileToDataUrl } from "../lib/files";
 import type { Network } from "../lib/types";
 
 type PayMethod = "upi" | "account" | "cdm";
@@ -46,7 +47,7 @@ export function BuyPage() {
       paymentMethod: method,
       paymentReference: reference,
       paymentScreenshot: screenshot,
-      status: "Processing"
+      status: "Payment Submitted"
     });
     setToast(`${order.id} submitted. Opening order chat.`);
     window.setTimeout(() => {
@@ -159,9 +160,17 @@ export function BuyPage() {
             <label className="uploadLine">
               <Upload size={18} />
               Upload screenshot / slip
-              <input type="file" accept="image/*" onChange={(event) => setScreenshot(event.target.files?.[0]?.name || "")} required />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (file) setScreenshot(await fileToDataUrl(file));
+                }}
+                required
+              />
             </label>
-            {screenshot && <small>Uploaded: {screenshot}</small>}
+            {screenshot && <small>Screenshot uploaded</small>}
             <button className="primaryButton" type="submit">Submit Payment</button>
           </form>
         </div>

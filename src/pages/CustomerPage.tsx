@@ -1,4 +1,4 @@
-import { ArrowRight, CircleDollarSign, Landmark, LogOut, ShieldCheck, UserRound, Wallet } from "lucide-react";
+import { ArrowRight, CircleDollarSign, Landmark, LogOut, MessageCircle, ShieldCheck, UserRound, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AuthPanel } from "../components/AuthPanel";
 import { Brand } from "../components/Brand";
@@ -42,6 +42,9 @@ export function CustomerPage() {
             <>
               <a className="softButton" href="/orders">
                 My Orders
+              </a>
+              <a className="iconButton" href="/messages" aria-label="Messages">
+                <MessageCircle size={19} />
               </a>
               <button className="softButton" type="button" onClick={logout}>
                 <LogOut size={16} />

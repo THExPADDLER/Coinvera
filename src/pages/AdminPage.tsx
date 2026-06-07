@@ -1,4 +1,4 @@
-import { Download, Lock, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
+import { Download, Eye, Lock, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
@@ -6,6 +6,8 @@ import { Toast } from "../components/Toast";
 import { addOrderMessage, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
 import type { AdminRole, BankAccountOption, BlockchainDeposit, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
+import { ImagePreviewModal } from "../components/ImagePreviewModal";
+import { fileToDataUrl, isImageData } from "../lib/files";
 
 interface AdminUser {
   username: string;
@@ -29,7 +31,7 @@ const rolePermissions: Record<AdminRole, {
 }> = {
   owner: { canEditSettings: true, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true },
   manager: { canEditSettings: false, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true },
-  operator: { canEditSettings: false, canExport: false, canUploadProof: true, canComplete: false, canChangeStatus: true },
+  operator: { canEditSettings: false, canExport: false, canUploadProof: true, canComplete: true, canChangeStatus: true },
   viewer: { canEditSettings: false, canExport: false, canUploadProof: false, canComplete: false, canChangeStatus: false }
 };
 
@@ -41,6 +43,7 @@ export function AdminPage() {
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
   const [cropTarget, setCropTarget] = useState<{ file: File; type: "upi" | "chain"; index?: number } | null>(null);
+  const [previewProof, setPreviewProof] = useState<{ src: string; alt: string } | null>(null);
   const permissions = adminUser ? rolePermissions[adminUser.role] : rolePermissions.viewer;
 
   const activeOrders = useMemo(() => orders.filter((order) => !["Completed", "Cancelled"].includes(order.status)), [orders]);
@@ -90,15 +93,15 @@ export function AdminPage() {
     setOrders(updateOrderStatus(orderId, status));
   }
 
-  function uploadAdminProof(order: DeskOrder, file: File | undefined) {
+  async function uploadAdminProof(order: DeskOrder, file: File | undefined) {
     if (!permissions.canUploadProof) {
       setToast("This role cannot upload proof");
       return;
     }
     if (!file) return;
-    const proof = file.name;
+    const proof = await fileToDataUrl(file);
     updateOrder(order.id, { adminProof: proof, adminConfirmed: true, status: order.mode === "buy" ? "USDT Released" : "INR Paid" });
-    setOrders(addOrderMessage(order.id, { sender: "admin", text: order.mode === "buy" ? "USDT released. Proof uploaded from Coinvera side." : "INR payout completed. Proof uploaded from Coinvera side.", attachment: proof }));
+    setOrders(addOrderMessage(order.id, { sender: "admin", text: order.mode === "buy" ? "USDT released. Proof uploaded from Coinvera side." : "INR payout completed. Proof uploaded from Coinvera side.", attachment: file.name }));
     setToast(`${order.id} proof uploaded`);
   }
 
@@ -107,8 +110,12 @@ export function AdminPage() {
       setToast("This role cannot complete orders");
       return;
     }
+    if (!order.adminProof) {
+      setToast("Upload Coinvera proof before completing the order");
+      return;
+    }
     updateOrder(order.id, { adminConfirmed: true, status: "Completed" });
-    setOrders(addOrderMessage(order.id, { sender: "admin", text: "Coinvera marked this order completed." }));
+    setOrders(addOrderMessage(order.id, { sender: "admin", text: "Coinvera staff completed this order. Chat is now closed." }));
   }
 
   function exportCsv() {
@@ -254,8 +261,8 @@ export function AdminPage() {
                           <span>{order.payment}</span>
                           {order.paymentMethod && <span>Method: {order.paymentMethod.toUpperCase()}</span>}
                           {order.paymentReference && <span>Ref: {order.paymentReference}</span>}
-                          {order.paymentScreenshot && <span>Proof: {order.paymentScreenshot}</span>}
-                          {order.adminProof && <span>Coinvera proof: {order.adminProof}</span>}
+                          {order.paymentScreenshot && <span>Customer proof: {isImageData(order.paymentScreenshot) ? "Uploaded image" : order.paymentScreenshot}</span>}
+                          {order.adminProof && <span>Coinvera proof: {isImageData(order.adminProof) ? "Uploaded image" : order.adminProof}</span>}
                         </td>
                         <td>
                           <StatusPill label={order.status} mode={order.mode} />
@@ -263,6 +270,17 @@ export function AdminPage() {
                         <td>
                           <div className="actionRow">
                             <a className="miniLink" href={`/chat/${order.id}?admin=1`}>Chat</a>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                order.paymentScreenshot && isImageData(order.paymentScreenshot)
+                                  ? setPreviewProof({ src: order.paymentScreenshot, alt: `${order.id} customer proof` })
+                                  : setToast(order.paymentScreenshot ? "This older proof has only a file name. New uploads will open as images." : "No customer proof uploaded yet")
+                              }
+                            >
+                              <Eye size={15} />
+                              View Customer Proof
+                            </button>
                             {permissions.canUploadProof && (
                               <label className="miniUpload">
                                 Upload proof
@@ -313,6 +331,7 @@ export function AdminPage() {
           }}
         />
       )}
+      {previewProof && <ImagePreviewModal src={previewProof.src} alt={previewProof.alt} onClose={() => setPreviewProof(null)} />}
     </main>
   );
 }
