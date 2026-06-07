@@ -1,6 +1,7 @@
 import { ArrowLeft, Clock, Image as ImageIcon, LockKeyhole, Send } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
+import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { StatusPill } from "../components/StatusPill";
 import { loadCustomerSession } from "../lib/auth";
 import { addActivityLog, addOrderMessage, loadOrders, money, usdt } from "../lib/desk";
@@ -13,6 +14,7 @@ export function ChatPage() {
   const isAdminView = params.get("admin") === "1";
   const session = loadCustomerSession();
   const [orders, setOrders] = useState<DeskOrder[]>([]);
+  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   const [text, setText] = useState("");
   const [tick, setTick] = useState(Date.now());
   const order = useMemo(() => orders.find((item) => item.id === orderId), [orders, orderId]);
@@ -100,8 +102,8 @@ export function ChatPage() {
             <span>Network: {order.network}</span>
             <span>Ref: {order.paymentReference || "Pending"}</span>
           </div>
-          <ProofBox title="Customer proof" proof={order.paymentScreenshot} />
-          <ProofBox title="Coinvera proof" proof={order.adminProof} />
+          <ProofBox title="Customer proof" proof={order.paymentScreenshot} onPreview={(src) => setPreviewImage({ src, alt: "Customer proof" })} />
+          <ProofBox title="Coinvera proof" proof={order.adminProof} onPreview={(src) => setPreviewImage({ src, alt: "Coinvera proof" })} />
           {chatClosed && (
             <div className={`finalChatState ${order.status === "Completed" ? "success" : "danger"}`}>
               <LockKeyhole size={18} />
@@ -116,7 +118,16 @@ export function ChatPage() {
               <article className={`chatBubble ${message.sender}`} key={message.id}>
                 <span>{message.sender === "admin" ? `Coinvera Staff${message.staffId ? ` · ${message.staffId}` : ""}` : message.sender === "system" ? "System" : "Customer"}</span>
                 <p>{message.text}</p>
-                {message.attachment && <small><ImageIcon size={14} /> {message.attachment}</small>}
+                {message.attachment && (
+                  isImageData(message.attachment) ? (
+                    <button className="chatAttachment" type="button" onClick={() => setPreviewImage({ src: message.attachment || "", alt: "Chat attachment" })}>
+                      <img src={message.attachment} alt="Chat attachment" />
+                      <small><ImageIcon size={14} /> View uploaded proof</small>
+                    </button>
+                  ) : (
+                    <small><ImageIcon size={14} /> {message.attachment}</small>
+                  )
+                )}
                 <time>{new Date(message.at).toLocaleString("en-IN")}</time>
               </article>
             ))}
@@ -130,17 +141,20 @@ export function ChatPage() {
           </form>
         </section>
       </section>
+      {previewImage && <ImagePreviewModal src={previewImage.src} alt={previewImage.alt} onClose={() => setPreviewImage(null)} />}
     </main>
   );
 }
 
-function ProofBox({ proof, title }: { proof?: string; title: string }) {
+function ProofBox({ onPreview, proof, title }: { onPreview: (src: string) => void; proof?: string; title: string }) {
   return (
     <div className="proofBox">
       <span>{title}</span>
       {proof ? (
         isImageData(proof) ? (
-          <img className="proofThumb" src={proof} alt={title} />
+          <button className="proofThumbButton" type="button" onClick={() => onPreview(proof)}>
+            <img className="proofThumb" src={proof} alt={title} />
+          </button>
         ) : (
           <strong><ImageIcon size={16} /> {proof}</strong>
         )

@@ -5,7 +5,7 @@ import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
 import { createOrder, loadDeskSettings, money } from "../lib/desk";
-import { fileToDataUrl } from "../lib/files";
+import { imageFileToCompressedDataUrl, imageSizeLabel } from "../lib/files";
 import type { Network } from "../lib/types";
 
 export function SellPage() {
@@ -22,6 +22,7 @@ export function SellPage() {
   const [ifsc, setIfsc] = useState("");
   const [bankName, setBankName] = useState("");
   const [screenshot, setScreenshot] = useState("");
+  const [uploadingProof, setUploadingProof] = useState(false);
   const [previewQr, setPreviewQr] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const total = useMemo(() => Number(amount || 0) * settings.rates.sell, [amount, settings.rates.sell]);
@@ -162,19 +163,33 @@ export function SellPage() {
             </div>
             <label className="uploadLine wide">
               <Upload size={18} />
-              Upload USDT transfer screenshot
+              {uploadingProof ? "Compressing screenshot..." : "Upload USDT transfer screenshot"}
               <input
                 type="file"
                 accept="image/*"
                 onChange={async (event) => {
                   const file = event.target.files?.[0];
-                  if (file) setScreenshot(await fileToDataUrl(file));
+                  if (!file) return;
+                  try {
+                    setUploadingProof(true);
+                    setScreenshot(await imageFileToCompressedDataUrl(file));
+                  } catch (error) {
+                    setToast(error instanceof Error ? error.message : "Could not upload screenshot");
+                    event.target.value = "";
+                  } finally {
+                    setUploadingProof(false);
+                  }
                 }}
                 required
               />
             </label>
-            {screenshot && <small className="wide">Screenshot uploaded</small>}
-            <button className="primaryButton wide" type="submit">Submit Sell Request</button>
+            {screenshot && (
+              <button className="uploadPreview wide" type="button" onClick={() => setPreviewQr(screenshot)}>
+                <img src={screenshot} alt="USDT transfer screenshot preview" />
+                <span>Screenshot ready ({imageSizeLabel(screenshot)})</span>
+              </button>
+            )}
+            <button className="primaryButton wide" type="submit" disabled={uploadingProof}>Submit Sell Request</button>
           </form>
         </section>
       </section>

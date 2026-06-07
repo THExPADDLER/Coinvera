@@ -9,7 +9,7 @@ import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, 
 import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
-import { fileToDataUrl, isImageData } from "../lib/files";
+import { imageFileToCompressedDataUrl, isImageData } from "../lib/files";
 
 interface AdminUser {
   username: string;
@@ -131,9 +131,15 @@ export function AdminPage() {
       return;
     }
     if (!file) return;
-    const proof = await fileToDataUrl(file);
+    let proof = "";
+    try {
+      proof = await imageFileToCompressedDataUrl(file);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Could not upload proof");
+      return;
+    }
     updateOrder(order.id, { adminProof: proof, adminConfirmed: true, status: order.mode === "buy" ? "USDT Released" : "INR Paid" });
-    setOrders(addOrderMessage(order.id, { sender: "admin", text: order.mode === "buy" ? "USDT released. Proof uploaded from Coinvera side." : "INR payout completed. Proof uploaded from Coinvera side.", attachment: file.name, staffId: adminUser?.staffId, staffName: adminUser?.label }));
+    setOrders(addOrderMessage(order.id, { sender: "admin", text: order.mode === "buy" ? "USDT released. Proof uploaded from Coinvera side." : "INR payout completed. Proof uploaded from Coinvera side.", attachment: proof, staffId: adminUser?.staffId, staffName: adminUser?.label }));
     if (adminUser) {
       setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Uploaded Coinvera proof", orderId: order.id }));
     }
@@ -354,6 +360,17 @@ export function AdminPage() {
                             >
                               <Eye size={15} />
                               View Customer Proof
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                order.adminProof && isImageData(order.adminProof)
+                                  ? setPreviewProof({ src: order.adminProof, alt: `${order.id} Coinvera proof` })
+                                  : setToast(order.adminProof ? "This older proof has only a file name. New uploads will open as images." : "No Coinvera proof uploaded yet")
+                              }
+                            >
+                              <Eye size={15} />
+                              View Coinvera Proof
                             </button>
                             {permissions.canUploadProof && (
                               <label className="miniUpload">

@@ -234,7 +234,7 @@ export function addActivityLog(input: Omit<AdminActivityLog, "id" | "at">): Admi
 
 export function createOrder(input: Omit<DeskOrder, "id" | "createdAt" | "inr" | "status"> & { status?: OrderStatus }): DeskOrder {
   const createdAt = new Date();
-  const proofText = input.paymentScreenshot ? `Customer proof uploaded: ${input.paymentScreenshot}` : "Order created.";
+  const proofText = input.paymentScreenshot ? "Customer payment proof uploaded." : "Order created.";
   const order: DeskOrder = {
     ...input,
     id: `ORD-${Date.now().toString().slice(-7)}`,
