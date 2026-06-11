@@ -8,6 +8,7 @@ import { MessagesPage } from "./pages/MessagesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { SellPage } from "./pages/SellPage";
+import { WalletPage } from "./pages/WalletPage";
 import { syncFirebaseToLocal } from "./lib/remoteStore";
 import "./styles.css";
 
@@ -17,6 +18,7 @@ function App() {
   const path = window.location.pathname;
   if (path.startsWith("/buy")) return <BuyPage />;
   if (path.startsWith("/sell")) return <SellPage />;
+  if (path.startsWith("/wallet")) return <WalletPage />;
   if (path.startsWith("/orders")) return <OrdersPage />;
   if (path.startsWith("/messages")) return <MessagesPage />;
   if (path.startsWith("/chat")) return <ChatPage />;

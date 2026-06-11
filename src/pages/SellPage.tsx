@@ -1,21 +1,16 @@
-import { ArrowLeft, Copy, Landmark, QrCode, Upload } from "lucide-react";
+import { ArrowLeft, Landmark } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
-import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
-import { createOrder, loadDeskSettings, money } from "../lib/desk";
-import { imageFileToCompressedDataUrl, imageSizeLabel } from "../lib/files";
+import { createOrder, loadDeskSettings, money, usdt } from "../lib/desk";
 import { loadCustomerPreferences, savePayoutMethod } from "../lib/preferences";
-import type { Network } from "../lib/types";
+import { getCustomerWalletBalance, lockWalletForSell } from "../lib/wallet";
 
 export function SellPage() {
   const session = loadCustomerSession();
   const settings = loadDeskSettings();
-  const defaultNetwork = settings.blockchains[0]?.name || "USDT TRC20";
   const [amount, setAmount] = useState("");
-  const [network, setNetwork] = useState<Network>(defaultNetwork);
-  const [txHash, setTxHash] = useState("");
   const [payoutMode, setPayoutMode] = useState<"upi" | "account">("upi");
   const [savedPayoutId, setSavedPayoutId] = useState("");
   const [savePayoutForFuture, setSavePayoutForFuture] = useState(false);
@@ -24,14 +19,11 @@ export function SellPage() {
   const [confirmAccountNumber, setConfirmAccountNumber] = useState("");
   const [ifsc, setIfsc] = useState("");
   const [bankName, setBankName] = useState("");
-  const [screenshot, setScreenshot] = useState("");
-  const [uploadingProof, setUploadingProof] = useState(false);
-  const [previewQr, setPreviewQr] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const total = useMemo(() => Number(amount || 0) * settings.rates.sell, [amount, settings.rates.sell]);
-  const selectedChain = settings.blockchains.find((chain) => chain.name === network) || settings.blockchains[0];
   const preferences = session ? loadCustomerPreferences(session.mobile) : null;
   const savedPayouts = preferences?.payoutMethods.filter((item) => item.type === payoutMode) || [];
+  const balance = session ? getCustomerWalletBalance(session.mobile) : { available: 0, pending: 0, locked: 0 };
 
   if (!session) {
     return (
@@ -50,6 +42,15 @@ export function SellPage() {
   function submitSell(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!session) return;
+    const sellAmount = Number(amount);
+    if (!sellAmount || sellAmount <= 0) {
+      setToast("Enter valid USDT amount");
+      return;
+    }
+    if (balance.available + 0.000001 < sellAmount) {
+      setToast("Insufficient verified wallet balance");
+      return;
+    }
     if (payoutMode === "account" && accountNumber !== confirmAccountNumber) {
       setToast("Account numbers do not match");
       return;
@@ -63,17 +64,21 @@ export function SellPage() {
       name: session.fullName,
       phone: session.mobile,
       customerMobile: session.mobile,
-      amount: Number(amount),
+      amount: sellAmount,
       rate: settings.rates.sell,
-      network,
-      wallet: `${selectedChain?.wallet || ""} | TX: ${txHash}`,
+      network: "Coinvera verified wallet",
+      wallet: "USDT debited from verified Coinvera wallet balance",
       payment: payoutDetails,
       kyc: `Basic account: ${session.fullName}. No KYC verification required in prototype.`,
       paymentMethod: payoutMode,
-      paymentReference: txHash,
-      paymentScreenshot: screenshot,
-      status: "USDT Submitted"
+      paymentReference: "Wallet balance",
+      paymentScreenshot: "",
+      status: "Processing"
     });
+    if (!lockWalletForSell(session.mobile, sellAmount, order.id)) {
+      setToast("Wallet balance changed. Please refresh and try again.");
+      return;
+    }
     if (savePayoutForFuture) {
       if (payoutMode === "upi") {
         savePayoutMethod(session.mobile, { type: "upi", upiId });
@@ -94,37 +99,19 @@ export function SellPage() {
         <div className="flowIntro">
           <p className="eyebrow dark">Sell USDT</p>
           <h1>Sell USDT at {money(settings.rates.sell)}.</h1>
-          <p>Send USDT to Coinvera's receiving wallet, enter the amount sent, then choose how you want to receive INR: UPI or account transfer.</p>
-          <div className="walletDisplay">
-            <span>Coinvera receiving wallet</span>
-            <button className="sellerQrBox clickableQr" type="button" disabled={!selectedChain?.qr} onClick={() => selectedChain?.qr && setPreviewQr(selectedChain.qr)}>
-              {selectedChain?.qr ? <img src={selectedChain.qr} alt={`${selectedChain.name} seller deposit QR`} /> : <QrCode size={92} />}
-            </button>
-            <strong>{selectedChain?.wallet || "Wallet not configured"}</strong>
-            <small>Blockchain: {selectedChain?.name || network}</small>
-            <button type="button" onClick={() => navigator.clipboard?.writeText(selectedChain?.wallet || "")}>
-              <Copy size={15} />
-              Copy
-            </button>
+          <p>Sell from your verified Coinvera wallet balance. Deposit USDT in Wallet first, then create sell orders in smaller parts.</p>
+          <div className="walletBalanceGrid">
+            <Balance label="Available" value={balance.available} />
+            <Balance label="Pending" value={Math.max(0, balance.pending)} />
+            <Balance label="Locked" value={Math.max(0, balance.locked)} />
           </div>
+          <a className="primaryButton" href="/wallet">Deposit / View Wallet</a>
         </div>
         <section className="tradePanel flowPanel">
           <form className="tradeForm" onSubmit={submitSell}>
             <label>
               USDT amount
-              <input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min="1" step="0.01" required placeholder="100" />
-            </label>
-            <label>
-              Blockchain
-              <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
-                {settings.blockchains.map((chain) => (
-                  <option value={chain.name} key={chain.id}>{chain.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="wide">
-              TX hash / transfer reference
-              <input value={txHash} onChange={(event) => setTxHash(event.target.value)} required placeholder="USDT transfer hash" />
+              <input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min="1" step="0.01" max={balance.available || undefined} required placeholder="100" />
             </label>
             <div className="quoteBar">
               <div>
@@ -137,7 +124,7 @@ export function SellPage() {
               </div>
               <div>
                 <span>Status</span>
-                <strong>Awaiting USDT</strong>
+                <strong>Wallet debit</strong>
               </div>
             </div>
 
@@ -204,41 +191,21 @@ export function SellPage() {
                 Save this payout detail for faster future payouts
               </label>
             </div>
-            <label className="uploadLine wide">
-              <Upload size={18} />
-              {uploadingProof ? "Compressing screenshot..." : "Upload USDT transfer screenshot"}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) return;
-                  try {
-                    setUploadingProof(true);
-                    setScreenshot(await imageFileToCompressedDataUrl(file));
-                  } catch (error) {
-                    setToast(error instanceof Error ? error.message : "Could not upload screenshot");
-                    event.target.value = "";
-                  } finally {
-                    setUploadingProof(false);
-                  }
-                }}
-                required
-              />
-            </label>
-            {screenshot && (
-              <button className="uploadPreview wide" type="button" onClick={() => setPreviewQr(screenshot)}>
-                <img src={screenshot} alt="USDT transfer screenshot preview" />
-                <span>Screenshot ready ({imageSizeLabel(screenshot)})</span>
-              </button>
-            )}
-            <button className="primaryButton wide" type="submit" disabled={uploadingProof}>Submit Sell Request</button>
+            <button className="primaryButton wide" type="submit" disabled={!balance.available || Number(amount || 0) > balance.available}>Submit Sell Request</button>
           </form>
         </section>
       </section>
       <Toast message={toast} onDone={() => setToast("")} />
-      {previewQr && <ImagePreviewModal alt="Seller deposit QR preview" src={previewQr} onClose={() => setPreviewQr(null)} />}
     </main>
+  );
+}
+
+function Balance({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="metricCard">
+      <span>{label}</span>
+      <strong>{usdt(value)}</strong>
+    </div>
   );
 }
 

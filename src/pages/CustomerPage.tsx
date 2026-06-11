@@ -40,6 +40,10 @@ export function CustomerPage() {
         <div className="navActions">
           {session ? (
             <>
+              <a className="softButton" href="/wallet">
+                <Wallet size={16} />
+                Wallet
+              </a>
               <a className="softButton" href="/orders">
                 My Orders
               </a>
@@ -84,7 +88,14 @@ export function CustomerPage() {
               <Landmark size={28} />
               <span>Sell USDT</span>
               <strong>{money(settings.rates.sell)} / USDT</strong>
-              <small>Submit sell request and bank payout details for admin settlement.</small>
+              <small>Sell from verified wallet balance and receive INR by UPI or bank payout.</small>
+              <ArrowRight size={19} />
+            </a>
+            <a className="tradeChoiceCard" href="/wallet">
+              <Wallet size={28} />
+              <span>Wallet</span>
+              <strong>Deposit USDT</strong>
+              <small>Add USDT once, wait for Coinvera verification, then sell in smaller parts.</small>
               <ArrowRight size={19} />
             </a>
           </div>

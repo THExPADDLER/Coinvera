@@ -1,4 +1,4 @@
-import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, RefreshCw, ShieldCheck, SlidersHorizontal, UserCheck, UsersRound } from "lucide-react";
+import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, RefreshCw, ShieldCheck, SlidersHorizontal, UserCheck, UsersRound, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
@@ -6,10 +6,11 @@ import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
 import { loadCustomerUsers } from "../lib/auth";
 import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
-import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus } from "../lib/types";
+import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus, WalletDeposit } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { imageFileToCompressedDataUrl, isImageData } from "../lib/files";
+import { cancelWalletSell, completeWalletSell, loadWalletDeposits, rejectWalletDeposit, verifyWalletDeposit } from "../lib/wallet";
 
 interface AdminUser {
   username: string;
@@ -38,7 +39,7 @@ const rolePermissions: Record<AdminRole, {
   viewer: { canEditSettings: false, canExport: false, canUploadProof: false, canComplete: false, canChangeStatus: false }
 };
 
-type AdminSection = "home" | "orders" | "users" | "settings" | "logs";
+type AdminSection = "home" | "orders" | "users" | "settings" | "wallets" | "logs";
 
 export function AdminPage() {
   const [username, setUsername] = useState("");
@@ -47,6 +48,7 @@ export function AdminPage() {
   const [orders, setOrders] = useState<DeskOrder[]>([]);
   const [users, setUsers] = useState<CustomerUser[]>([]);
   const [logs, setLogs] = useState<AdminActivityLog[]>([]);
+  const [walletDeposits, setWalletDeposits] = useState<WalletDeposit[]>([]);
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
   const [cropTarget, setCropTarget] = useState<{ draft: DeskSettings; file: File; type: "upi" | "chain"; index?: number } | null>(null);
@@ -69,22 +71,26 @@ export function AdminPage() {
     setOrders(loadOrders());
     setUsers(loadCustomerUsers());
     setLogs(loadActivityLogs());
+    setWalletDeposits(loadWalletDeposits());
     const sync = () => {
       setOrders(loadOrders());
       setUsers(loadCustomerUsers());
       setSettings(loadDeskSettings());
       setLogs(loadActivityLogs());
+      setWalletDeposits(loadWalletDeposits());
     };
     window.addEventListener("desk-orders-updated", sync);
     window.addEventListener("desk-settings-updated", sync);
     window.addEventListener("coinvera-activity-log-updated", sync);
     window.addEventListener("coinvera-users-updated", sync);
+    window.addEventListener("coinvera-wallet-updated", sync);
     window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener("desk-orders-updated", sync);
       window.removeEventListener("desk-settings-updated", sync);
       window.removeEventListener("coinvera-activity-log-updated", sync);
       window.removeEventListener("coinvera-users-updated", sync);
+      window.removeEventListener("coinvera-wallet-updated", sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
@@ -109,6 +115,13 @@ export function AdminPage() {
       return;
     }
     setOrders(updateOrderStatus(orderId, status));
+    const order = orders.find((item) => item.id === orderId);
+    if (order?.mode === "sell" && order.customerMobile && status === "Cancelled") {
+      cancelWalletSell(order.customerMobile, order.amount, order.id);
+    }
+    if (order?.mode === "sell" && order.customerMobile && status === "Completed") {
+      completeWalletSell(order.customerMobile, order.amount, order.id);
+    }
     if (adminUser) {
       setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: `Changed status to ${status}`, orderId }));
     }
@@ -156,6 +169,9 @@ export function AdminPage() {
       return;
     }
     updateOrder(order.id, { adminConfirmed: true, status: "Completed" });
+    if (order.mode === "sell" && order.customerMobile) {
+      completeWalletSell(order.customerMobile, order.amount, order.id);
+    }
     setOrders(addOrderMessage(order.id, { sender: "admin", text: "Coinvera staff completed this order. Chat is now closed.", staffId: adminUser?.staffId, staffName: adminUser?.label }));
     if (adminUser) {
       setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Completed order", orderId: order.id }));
@@ -198,6 +214,31 @@ export function AdminPage() {
       setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: changes[0] ? `Updated settings: ${changes[0]}` : "Saved website rates/payment settings without visible changes", detail: changes.slice(1).join(" | ") }));
     }
     setToast(changes.length ? "Website settings updated and logged" : "Settings saved");
+  }
+
+  function verifyDeposit(deposit: WalletDeposit) {
+    if (!adminUser || adminUser.role === "viewer") {
+      setToast("This role cannot verify deposits");
+      return;
+    }
+    const holdLeft = new Date(deposit.holdUntil).getTime() - Date.now();
+    if (holdLeft > 0) {
+      setToast("30 minute verification hold is still active");
+      return;
+    }
+    setWalletDeposits(verifyWalletDeposit(deposit.id, { staffId: adminUser.staffId, staffName: adminUser.label }));
+    setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: `Verified wallet deposit ${deposit.id}`, detail: `${deposit.amount} USDT for ${deposit.customerMobile}` }));
+    setToast(`${deposit.id} verified`);
+  }
+
+  function rejectDeposit(deposit: WalletDeposit) {
+    if (!adminUser || adminUser.role === "viewer") {
+      setToast("This role cannot reject deposits");
+      return;
+    }
+    setWalletDeposits(rejectWalletDeposit(deposit.id, { staffId: adminUser.staffId, staffName: adminUser.label }, "Rejected by Coinvera verification team."));
+    setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: `Rejected wallet deposit ${deposit.id}`, detail: `${deposit.amount} USDT for ${deposit.customerMobile}` }));
+    setToast(`${deposit.id} rejected`);
   }
 
   return (
@@ -278,6 +319,7 @@ export function AdminPage() {
               <AdminMenuCard icon={<PackageCheck size={24} />} title="Orders" meta={`${orders.length} orders`} detail="Chats, proof, staff assignment, status, and completion controls." onClick={() => setActiveSection("orders")} />
               <AdminMenuCard icon={<UsersRound size={24} />} title="Customer Users" meta="Customer registry" detail="Customer profiles, order totals, volume, and quick actions." onClick={() => setActiveSection("users")} />
               <AdminMenuCard icon={<SlidersHorizontal size={24} />} title="Rates & Payment" meta={permissions.canEditSettings ? "Editable" : "Read only"} detail="Rates, UPI QR, bank accounts, CDM, and blockchain wallets." onClick={() => setActiveSection("settings")} />
+              <AdminMenuCard icon={<Wallet size={24} />} title="Wallet Deposits" meta={`${walletDeposits.length} deposits`} detail="Verify USDT deposits, reject fake transfers, and release wallet balance." onClick={() => setActiveSection("wallets")} />
               <AdminMenuCard icon={<ClipboardList size={24} />} title="Activity Log" meta={`${logs.length} entries`} detail="Staff logins, assignments, proof views, status changes, and exports." onClick={() => setActiveSection("logs")} />
             </section>
           )}
@@ -296,6 +338,7 @@ export function AdminPage() {
           )}
 
           {activeSection === "users" && <CustomerUsersSection users={users} orders={orders} onCopyMobile={copyMobile} />}
+          {activeSection === "wallets" && <WalletDepositsSection deposits={walletDeposits} onReject={rejectDeposit} onVerify={verifyDeposit} />}
 
           {activeSection === "orders" && <section className="ordersSurface">
             {orders.length === 0 ? (
@@ -495,6 +538,7 @@ function SectionBack({ activeSection, onBack }: { activeSection: AdminSection; o
     orders: "Orders",
     users: "Customer Users",
     settings: "Rates & Payment",
+    wallets: "Wallet Deposits",
     logs: "Activity Log"
   };
 
@@ -677,6 +721,66 @@ function CustomerUsersSection({
               </div>
             </article>
           ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function WalletDepositsSection({ deposits, onReject, onVerify }: { deposits: WalletDeposit[]; onReject: (deposit: WalletDeposit) => void; onVerify: (deposit: WalletDeposit) => void }) {
+  return (
+    <section className="ordersSurface">
+      {deposits.length === 0 ? (
+        <div className="emptyState">No wallet deposits submitted yet.</div>
+      ) : (
+        <div className="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Deposit</th>
+                <th>Customer</th>
+                <th>Network</th>
+                <th>Verification</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deposits.map((deposit) => {
+                const holdLeft = Math.max(0, new Date(deposit.holdUntil).getTime() - Date.now());
+                const holdLabel = holdLeft > 0 ? `${Math.ceil(holdLeft / 60000)} min hold left` : "Hold complete";
+                return (
+                  <tr key={deposit.id}>
+                    <td>
+                      <strong>{deposit.id}</strong>
+                      <span>{new Date(deposit.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
+                      <span>{deposit.status}</span>
+                    </td>
+                    <td>
+                      <strong>{deposit.customerName}</strong>
+                      <span>{deposit.customerMobile}</span>
+                      <span>{usdt(deposit.amount)}</span>
+                    </td>
+                    <td>
+                      <strong>{deposit.network}</strong>
+                      <span>{deposit.walletAddress}</span>
+                      <span>TX: {deposit.txHash}</span>
+                    </td>
+                    <td>
+                      <strong>{holdLabel}</strong>
+                      {deposit.verifiedByStaffId && <span>Staff: {deposit.verifiedByStaffId}</span>}
+                      {deposit.adminNote && <span>{deposit.adminNote}</span>}
+                    </td>
+                    <td>
+                      <div className="actionRow">
+                        <button type="button" disabled={deposit.status !== "Pending Verification" || holdLeft > 0} onClick={() => onVerify(deposit)}>Mark Verified</button>
+                        <button type="button" disabled={deposit.status !== "Pending Verification"} onClick={() => onReject(deposit)}>Reject / Fake</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </section>

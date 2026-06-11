@@ -263,7 +263,7 @@ function normalizeOrders(orders: DeskOrder[]): DeskOrder[] {
   const now = Date.now();
   return orders.map((order) => {
     const expiresAt = order.expiresAt || new Date(new Date(order.createdAt).getTime() + orderTtlMs).toISOString();
-    const customerProofSubmitted = Boolean(order.paymentScreenshot);
+    const customerProofSubmitted = order.mode === "sell" || Boolean(order.paymentScreenshot);
     const shouldCancel = !customerProofSubmitted && !["Completed", "Cancelled"].includes(order.status) && new Date(expiresAt).getTime() <= now;
     const expiryMessageExists = (order.chat || []).some((message) => message.text.includes("cancelled automatically after 30 minutes"));
     return {

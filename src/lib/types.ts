@@ -114,6 +114,43 @@ export interface CustomerPreferences {
   updatedAt: string;
 }
 
+export type WalletDepositStatus = "Pending Verification" | "Available" | "Rejected";
+
+export interface WalletDeposit {
+  id: string;
+  customerMobile: string;
+  customerName: string;
+  network: Network;
+  walletAddress: string;
+  amount: number;
+  txHash: string;
+  status: WalletDepositStatus;
+  createdAt: string;
+  holdUntil: string;
+  verifiedAt?: string;
+  rejectedAt?: string;
+  adminNote?: string;
+  verifiedByStaffId?: string;
+  verifiedByStaffName?: string;
+}
+
+export interface WalletLedgerEntry {
+  id: string;
+  customerMobile: string;
+  at: string;
+  type: "deposit_pending" | "deposit_verified" | "deposit_rejected" | "sell_locked" | "sell_completed" | "sell_cancelled";
+  amount: number;
+  orderId?: string;
+  depositId?: string;
+  note: string;
+}
+
+export interface CustomerWalletBalance {
+  available: number;
+  pending: number;
+  locked: number;
+}
+
 export interface DeskRates {
   buy: number;
   sell: number;
