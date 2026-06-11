@@ -6,11 +6,11 @@ import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
 import { loadCustomerUsers } from "../lib/auth";
 import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
-import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus, WalletDeposit } from "../lib/types";
+import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus, WalletDeposit, WalletWithdrawal } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { imageFileToCompressedDataUrl, isImageData } from "../lib/files";
-import { cancelWalletSell, completeWalletSell, loadWalletDeposits, rejectWalletDeposit, verifyWalletDeposit } from "../lib/wallet";
+import { cancelWalletSell, cancelWalletWithdrawal, completeWalletSell, completeWalletWithdrawal, creditWalletFromBuy, loadWalletDeposits, loadWalletWithdrawals, rejectWalletDeposit, verifyWalletDeposit } from "../lib/wallet";
 
 interface AdminUser {
   username: string;
@@ -49,6 +49,7 @@ export function AdminPage() {
   const [users, setUsers] = useState<CustomerUser[]>([]);
   const [logs, setLogs] = useState<AdminActivityLog[]>([]);
   const [walletDeposits, setWalletDeposits] = useState<WalletDeposit[]>([]);
+  const [walletWithdrawals, setWalletWithdrawals] = useState<WalletWithdrawal[]>([]);
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
   const [cropTarget, setCropTarget] = useState<{ draft: DeskSettings; file: File; type: "upi" | "chain"; index?: number } | null>(null);
@@ -72,12 +73,14 @@ export function AdminPage() {
     setUsers(loadCustomerUsers());
     setLogs(loadActivityLogs());
     setWalletDeposits(loadWalletDeposits());
+    setWalletWithdrawals(loadWalletWithdrawals());
     const sync = () => {
       setOrders(loadOrders());
       setUsers(loadCustomerUsers());
       setSettings(loadDeskSettings());
       setLogs(loadActivityLogs());
       setWalletDeposits(loadWalletDeposits());
+      setWalletWithdrawals(loadWalletWithdrawals());
     };
     window.addEventListener("desk-orders-updated", sync);
     window.addEventListener("desk-settings-updated", sync);
@@ -121,6 +124,9 @@ export function AdminPage() {
     }
     if (order?.mode === "sell" && order.customerMobile && status === "Completed") {
       completeWalletSell(order.customerMobile, order.amount, order.id);
+    }
+    if (order?.mode === "buy" && order.customerMobile && order.deliveryMethod === "wallet" && status === "Completed") {
+      creditWalletFromBuy(order.customerMobile, order.amount, order.id);
     }
     if (adminUser) {
       setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: `Changed status to ${status}`, orderId }));
@@ -171,6 +177,9 @@ export function AdminPage() {
     updateOrder(order.id, { adminConfirmed: true, status: "Completed" });
     if (order.mode === "sell" && order.customerMobile) {
       completeWalletSell(order.customerMobile, order.amount, order.id);
+    }
+    if (order.mode === "buy" && order.customerMobile && order.deliveryMethod === "wallet") {
+      creditWalletFromBuy(order.customerMobile, order.amount, order.id);
     }
     setOrders(addOrderMessage(order.id, { sender: "admin", text: "Coinvera staff completed this order. Chat is now closed.", staffId: adminUser?.staffId, staffName: adminUser?.label }));
     if (adminUser) {
@@ -239,6 +248,30 @@ export function AdminPage() {
     setWalletDeposits(rejectWalletDeposit(deposit.id, { staffId: adminUser.staffId, staffName: adminUser.label }, "Rejected by Coinvera verification team."));
     setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: `Rejected wallet deposit ${deposit.id}`, detail: `${deposit.amount} USDT for ${deposit.customerMobile}` }));
     setToast(`${deposit.id} rejected`);
+  }
+
+  function completeWithdrawal(withdrawal: WalletWithdrawal) {
+    if (!adminUser || adminUser.role === "viewer") {
+      setToast("This role cannot complete withdrawals");
+      return;
+    }
+    const txHash = window.prompt("Enter withdrawal TX hash / transfer proof reference", withdrawal.txHash || "");
+    if (txHash === null) return;
+    setWalletWithdrawals(completeWalletWithdrawal(withdrawal.id, { staffId: adminUser.staffId, staffName: adminUser.label }, txHash));
+    setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: `Completed wallet withdrawal ${withdrawal.id}`, detail: `${withdrawal.amount} USDT to ${withdrawal.customerMobile}. TX: ${txHash || "not entered"}` }));
+    setToast(`${withdrawal.id} completed`);
+  }
+
+  function cancelWithdrawal(withdrawal: WalletWithdrawal) {
+    if (!adminUser || adminUser.role === "viewer") {
+      setToast("This role cannot cancel withdrawals");
+      return;
+    }
+    const note = window.prompt("Cancellation note", "Withdrawal cancelled by Coinvera team.");
+    if (note === null) return;
+    setWalletWithdrawals(cancelWalletWithdrawal(withdrawal.id, { staffId: adminUser.staffId, staffName: adminUser.label }, note));
+    setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: `Cancelled wallet withdrawal ${withdrawal.id}`, detail: `${withdrawal.amount} USDT returned to ${withdrawal.customerMobile}` }));
+    setToast(`${withdrawal.id} cancelled`);
   }
 
   return (
@@ -319,7 +352,7 @@ export function AdminPage() {
               <AdminMenuCard icon={<PackageCheck size={24} />} title="Orders" meta={`${orders.length} orders`} detail="Chats, proof, staff assignment, status, and completion controls." onClick={() => setActiveSection("orders")} />
               <AdminMenuCard icon={<UsersRound size={24} />} title="Customer Users" meta="Customer registry" detail="Customer profiles, order totals, volume, and quick actions." onClick={() => setActiveSection("users")} />
               <AdminMenuCard icon={<SlidersHorizontal size={24} />} title="Rates & Payment" meta={permissions.canEditSettings ? "Editable" : "Read only"} detail="Rates, UPI QR, bank accounts, CDM, and blockchain wallets." onClick={() => setActiveSection("settings")} />
-              <AdminMenuCard icon={<Wallet size={24} />} title="Wallet Deposits" meta={`${walletDeposits.length} deposits`} detail="Verify USDT deposits, reject fake transfers, and release wallet balance." onClick={() => setActiveSection("wallets")} />
+              <AdminMenuCard icon={<Wallet size={24} />} title="Wallet Desk" meta={`${walletDeposits.length} deposits / ${walletWithdrawals.length} withdrawals`} detail="Verify deposits, reject fake transfers, and process customer withdrawals." onClick={() => setActiveSection("wallets")} />
               <AdminMenuCard icon={<ClipboardList size={24} />} title="Activity Log" meta={`${logs.length} entries`} detail="Staff logins, assignments, proof views, status changes, and exports." onClick={() => setActiveSection("logs")} />
             </section>
           )}
@@ -338,7 +371,7 @@ export function AdminPage() {
           )}
 
           {activeSection === "users" && <CustomerUsersSection users={users} orders={orders} onCopyMobile={copyMobile} />}
-          {activeSection === "wallets" && <WalletDepositsSection deposits={walletDeposits} onReject={rejectDeposit} onVerify={verifyDeposit} />}
+          {activeSection === "wallets" && <WalletDepositsSection deposits={walletDeposits} withdrawals={walletWithdrawals} onCancelWithdrawal={cancelWithdrawal} onCompleteWithdrawal={completeWithdrawal} onReject={rejectDeposit} onVerify={verifyDeposit} />}
 
           {activeSection === "orders" && <section className="ordersSurface">
             {orders.length === 0 ? (
@@ -538,7 +571,7 @@ function SectionBack({ activeSection, onBack }: { activeSection: AdminSection; o
     orders: "Orders",
     users: "Customer Users",
     settings: "Rates & Payment",
-    wallets: "Wallet Deposits",
+    wallets: "Wallet Desk",
     logs: "Activity Log"
   };
 
@@ -727,9 +760,30 @@ function CustomerUsersSection({
   );
 }
 
-function WalletDepositsSection({ deposits, onReject, onVerify }: { deposits: WalletDeposit[]; onReject: (deposit: WalletDeposit) => void; onVerify: (deposit: WalletDeposit) => void }) {
+function WalletDepositsSection({
+  deposits,
+  onCancelWithdrawal,
+  onCompleteWithdrawal,
+  onReject,
+  onVerify,
+  withdrawals
+}: {
+  deposits: WalletDeposit[];
+  onCancelWithdrawal: (withdrawal: WalletWithdrawal) => void;
+  onCompleteWithdrawal: (withdrawal: WalletWithdrawal) => void;
+  onReject: (deposit: WalletDeposit) => void;
+  onVerify: (deposit: WalletDeposit) => void;
+  withdrawals: WalletWithdrawal[];
+}) {
   return (
-    <section className="ordersSurface">
+    <section className="ordersSurface walletDeskSurface">
+      <div className="settingsHead">
+        <div>
+          <h2>Wallet Deposits</h2>
+          <p>Approve only after the 30 minute verification hold is complete.</p>
+        </div>
+        <Wallet size={28} />
+      </div>
       {deposits.length === 0 ? (
         <div className="emptyState">No wallet deposits submitted yet.</div>
       ) : (
@@ -779,6 +833,62 @@ function WalletDepositsSection({ deposits, onReject, onVerify }: { deposits: Wal
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="settingsHead walletDeskHead">
+        <div>
+          <h2>Wallet Withdrawals</h2>
+          <p>Complete after USDT is sent to the customer's selected network and wallet.</p>
+        </div>
+        <Download size={28} />
+      </div>
+      {withdrawals.length === 0 ? (
+        <div className="emptyState">No wallet withdrawals requested yet.</div>
+      ) : (
+        <div className="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Withdrawal</th>
+                <th>Customer</th>
+                <th>Destination</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {withdrawals.map((withdrawal) => (
+                <tr key={withdrawal.id}>
+                  <td>
+                    <strong>{withdrawal.id}</strong>
+                    <span>{new Date(withdrawal.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
+                    <span>{usdt(withdrawal.amount)}</span>
+                  </td>
+                  <td>
+                    <strong>{withdrawal.customerName}</strong>
+                    <span>{withdrawal.customerMobile}</span>
+                  </td>
+                  <td>
+                    <strong>{withdrawal.network}</strong>
+                    <span>{withdrawal.address}</span>
+                    {withdrawal.txHash && <span>TX: {withdrawal.txHash}</span>}
+                  </td>
+                  <td>
+                    <strong>{withdrawal.status}</strong>
+                    {withdrawal.handledByStaffId && <span>Staff: {withdrawal.handledByStaffId}</span>}
+                    {withdrawal.adminNote && <span>{withdrawal.adminNote}</span>}
+                  </td>
+                  <td>
+                    <div className="actionRow">
+                      <button type="button" disabled={withdrawal.status !== "Requested"} onClick={() => onCompleteWithdrawal(withdrawal)}>Mark Sent</button>
+                      <button type="button" disabled={withdrawal.status !== "Requested"} onClick={() => onCancelWithdrawal(withdrawal)}>Cancel</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

@@ -5,8 +5,8 @@ import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
 import { loadDeskSettings, usdt } from "../lib/desk";
-import { createWalletDeposit, getCustomerWalletBalance, loadWalletDeposits, loadWalletLedger } from "../lib/wallet";
-import type { Network, WalletDeposit, WalletLedgerEntry } from "../lib/types";
+import { createWalletDeposit, createWalletWithdrawal, getCustomerWalletBalance, loadWalletDeposits, loadWalletLedger, loadWalletWithdrawals } from "../lib/wallet";
+import type { Network, WalletDeposit, WalletLedgerEntry, WalletWithdrawal } from "../lib/types";
 
 export function WalletPage() {
   const session = loadCustomerSession();
@@ -15,8 +15,12 @@ export function WalletPage() {
   const [network, setNetwork] = useState<Network>(defaultNetwork);
   const [amount, setAmount] = useState("");
   const [txHash, setTxHash] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawNetwork, setWithdrawNetwork] = useState<Network>(defaultNetwork);
+  const [withdrawAddress, setWithdrawAddress] = useState("");
   const [deposits, setDeposits] = useState<WalletDeposit[]>([]);
   const [ledger, setLedger] = useState<WalletLedgerEntry[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WalletWithdrawal[]>([]);
   const [previewQr, setPreviewQr] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const selectedChain = settings.blockchains.find((chain) => chain.name === network) || settings.blockchains[0];
@@ -25,6 +29,7 @@ export function WalletPage() {
     const sync = () => {
       setDeposits(loadWalletDeposits());
       setLedger(loadWalletLedger());
+      setWithdrawals(loadWalletWithdrawals());
     };
     sync();
     window.addEventListener("coinvera-wallet-updated", sync);
@@ -38,6 +43,7 @@ export function WalletPage() {
   const balance = useMemo(() => (session ? getCustomerWalletBalance(session.mobile) : { available: 0, pending: 0, locked: 0 }), [session, deposits, ledger]);
   const customerDeposits = session ? deposits.filter((deposit) => deposit.customerMobile === session.mobile) : [];
   const customerLedger = session ? ledger.filter((entry) => entry.customerMobile === session.mobile) : [];
+  const customerWithdrawals = session ? withdrawals.filter((withdrawal) => withdrawal.customerMobile === session.mobile) : [];
 
   function submitDeposit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,6 +72,36 @@ export function WalletPage() {
     setToast(`${deposit.id} submitted for verification`);
   }
 
+  function submitWithdrawal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session) return;
+    const value = Number(withdrawAmount);
+    if (!value || value <= 0) {
+      setToast("Enter a valid withdrawal amount");
+      return;
+    }
+    if (!withdrawAddress.trim()) {
+      setToast("Enter receiving wallet address");
+      return;
+    }
+    const withdrawal = createWalletWithdrawal({
+      amount: value,
+      customerMobile: session.mobile,
+      customerName: session.fullName,
+      network: withdrawNetwork,
+      address: withdrawAddress
+    });
+    if (!withdrawal) {
+      setToast("Not enough available USDT for this withdrawal");
+      return;
+    }
+    setWithdrawals(loadWalletWithdrawals());
+    setLedger(loadWalletLedger());
+    setWithdrawAmount("");
+    setWithdrawAddress("");
+    setToast(`${withdrawal.id} withdrawal requested`);
+  }
+
   if (!session) {
     return (
       <main className="flowShell">
@@ -88,7 +124,7 @@ export function WalletPage() {
           <div>
             <p className="eyebrow dark">Coinvera Wallet</p>
             <h1>Deposit USDT, verify once, sell in smaller parts.</h1>
-            <p>Deposits stay pending until Coinvera verifies the on-chain transaction. Verified balance can be used for sell orders.</p>
+            <p>Deposits stay pending until Coinvera verifies the on-chain transaction. Verified balance can be sold or withdrawn.</p>
           </div>
           <div className="walletBalanceGrid">
             <Metric label="Available" value={usdt(balance.available)} />
@@ -145,6 +181,56 @@ export function WalletPage() {
                     <p>{usdt(deposit.amount)} on {deposit.network}</p>
                     <small>TX: {deposit.txHash}</small>
                     <small>Hold until {new Date(deposit.holdUntil).toLocaleString("en-IN")}</small>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <form className="tradePanel tradeForm" onSubmit={submitWithdrawal}>
+            <h2>Withdraw USDT</h2>
+            <label>
+              Amount
+              <input type="number" min="0.01" step="0.01" value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} placeholder="50" required />
+            </label>
+            <label>
+              Network
+              <select value={withdrawNetwork} onChange={(event) => setWithdrawNetwork(event.target.value)}>
+                {settings.blockchains.map((chain) => (
+                  <option value={chain.name} key={chain.id}>{chain.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="wide">
+              Receiving wallet address
+              <input value={withdrawAddress} onChange={(event) => setWithdrawAddress(event.target.value)} placeholder="Enter your USDT wallet address" required />
+            </label>
+            <div className="walletDeliveryNote wide">
+              <Wallet size={18} />
+              <div>
+                <strong>{usdt(balance.available)} available</strong>
+                <span>Requested amount is locked until admin sends USDT or cancels the request.</span>
+              </div>
+            </div>
+            <button className="primaryButton wide" type="submit" disabled={!Number(withdrawAmount) || !withdrawAddress.trim()}>Request Withdrawal</button>
+          </form>
+
+          <section className="walletHistoryPanel">
+            <h2>Withdrawal History</h2>
+            {customerWithdrawals.length === 0 ? (
+              <div className="emptyState">No withdrawal requests yet.</div>
+            ) : (
+              <div className="walletList">
+                {customerWithdrawals.map((withdrawal) => (
+                  <article className="walletListItem" key={withdrawal.id}>
+                    <div>
+                      <strong>{withdrawal.id}</strong>
+                      <span>{withdrawal.status}</span>
+                    </div>
+                    <p>{usdt(withdrawal.amount)} on {withdrawal.network}</p>
+                    <small>{withdrawal.address}</small>
+                    {withdrawal.txHash && <small>TX: {withdrawal.txHash}</small>}
+                    {withdrawal.adminNote && <small>{withdrawal.adminNote}</small>}
                   </article>
                 ))}
               </div>

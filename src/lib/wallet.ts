@@ -1,8 +1,9 @@
-import { saveWalletDepositsToFirebase, saveWalletLedgerToFirebase } from "./remoteStore";
-import type { CustomerWalletBalance, Network, WalletDeposit, WalletLedgerEntry } from "./types";
+import { saveWalletDepositsToFirebase, saveWalletLedgerToFirebase, saveWalletWithdrawalsToFirebase } from "./remoteStore";
+import type { CustomerWalletBalance, Network, WalletDeposit, WalletLedgerEntry, WalletWithdrawal } from "./types";
 
 export const walletDepositsStorageKey = "coinvera-wallet-deposits";
 export const walletLedgerStorageKey = "coinvera-wallet-ledger";
+export const walletWithdrawalsStorageKey = "coinvera-wallet-withdrawals";
 export const walletHoldMs = 30 * 60 * 1000;
 
 export function loadWalletDeposits(): WalletDeposit[] {
@@ -41,6 +42,25 @@ export function saveWalletLedger(entries: WalletLedgerEntry[]): WalletLedgerEntr
   void saveWalletLedgerToFirebase(entries);
   window.dispatchEvent(new Event("coinvera-wallet-updated"));
   return entries;
+}
+
+export function loadWalletWithdrawals(): WalletWithdrawal[] {
+  try {
+    return JSON.parse(localStorage.getItem(walletWithdrawalsStorageKey) || "[]") as WalletWithdrawal[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveWalletWithdrawals(withdrawals: WalletWithdrawal[]): WalletWithdrawal[] {
+  try {
+    localStorage.setItem(walletWithdrawalsStorageKey, JSON.stringify(withdrawals));
+  } catch {
+    console.warn("Local wallet withdrawal storage failed; Firebase sync will continue when configured.");
+  }
+  void saveWalletWithdrawalsToFirebase(withdrawals);
+  window.dispatchEvent(new Event("coinvera-wallet-updated"));
+  return withdrawals;
 }
 
 export function createWalletDeposit(input: {
@@ -140,6 +160,7 @@ export function getCustomerWalletBalance(customerMobile: string): CustomerWallet
           balance.available += entry.amount;
         }
         if (entry.type === "deposit_rejected") balance.pending -= entry.amount;
+        if (entry.type === "buy_credited") balance.available += entry.amount;
         if (entry.type === "sell_locked") {
           balance.available -= entry.amount;
           balance.locked += entry.amount;
@@ -149,10 +170,30 @@ export function getCustomerWalletBalance(customerMobile: string): CustomerWallet
           balance.locked -= entry.amount;
           balance.available += entry.amount;
         }
+        if (entry.type === "withdraw_locked") {
+          balance.available -= entry.amount;
+          balance.locked += entry.amount;
+        }
+        if (entry.type === "withdraw_completed") balance.locked -= entry.amount;
+        if (entry.type === "withdraw_cancelled") {
+          balance.locked -= entry.amount;
+          balance.available += entry.amount;
+        }
         return balance;
       },
       { available: 0, pending: 0, locked: 0 }
     );
+}
+
+export function creditWalletFromBuy(customerMobile: string, amount: number, orderId: string) {
+  if (loadWalletLedger().some((entry) => entry.type === "buy_credited" && entry.orderId === orderId)) return;
+  addWalletLedger({
+    customerMobile,
+    type: "buy_credited",
+    amount,
+    orderId,
+    note: `${amount} USDT credited from buy order ${orderId}`
+  });
 }
 
 export function lockWalletForSell(customerMobile: string, amount: number, orderId: string): boolean {
@@ -188,6 +229,92 @@ export function cancelWalletSell(customerMobile: string, amount: number, orderId
     orderId,
     note: `${amount} USDT returned to available wallet from cancelled order ${orderId}`
   });
+}
+
+export function createWalletWithdrawal(input: {
+  address: string;
+  amount: number;
+  customerMobile: string;
+  customerName: string;
+  network: Network;
+}): WalletWithdrawal | null {
+  const balance = getCustomerWalletBalance(input.customerMobile);
+  if (balance.available + 0.000001 < input.amount) return null;
+  const withdrawal: WalletWithdrawal = {
+    id: `WD-${Date.now().toString().slice(-7)}`,
+    customerMobile: input.customerMobile,
+    customerName: input.customerName,
+    amount: input.amount,
+    network: input.network,
+    address: input.address.trim(),
+    status: "Requested",
+    createdAt: new Date().toISOString()
+  };
+  saveWalletWithdrawals([withdrawal, ...loadWalletWithdrawals()]);
+  addWalletLedger({
+    customerMobile: input.customerMobile,
+    type: "withdraw_locked",
+    amount: input.amount,
+    withdrawalId: withdrawal.id,
+    note: `${input.amount} USDT locked for withdrawal ${withdrawal.id}`
+  });
+  return withdrawal;
+}
+
+export function completeWalletWithdrawal(withdrawalId: string, staff: { staffId: string; staffName: string }, txHash = ""): WalletWithdrawal[] {
+  if (loadWalletLedger().some((entry) => entry.type === "withdraw_completed" && entry.withdrawalId === withdrawalId)) return loadWalletWithdrawals();
+  let completed: WalletWithdrawal | undefined;
+  const withdrawals = loadWalletWithdrawals().map((withdrawal) => {
+    if (withdrawal.id !== withdrawalId || withdrawal.status !== "Requested") return withdrawal;
+    completed = {
+      ...withdrawal,
+      status: "Completed",
+      completedAt: new Date().toISOString(),
+      txHash: txHash.trim(),
+      handledByStaffId: staff.staffId,
+      handledByStaffName: staff.staffName
+    };
+    return completed;
+  });
+  saveWalletWithdrawals(withdrawals);
+  if (completed) {
+    addWalletLedger({
+      customerMobile: completed.customerMobile,
+      type: "withdraw_completed",
+      amount: completed.amount,
+      withdrawalId: completed.id,
+      note: `${completed.amount} USDT withdrawal completed by ${staff.staffId}${txHash ? `. TX: ${txHash.trim()}` : ""}`
+    });
+  }
+  return withdrawals;
+}
+
+export function cancelWalletWithdrawal(withdrawalId: string, staff: { staffId: string; staffName: string }, note = "Withdrawal cancelled by Coinvera team."): WalletWithdrawal[] {
+  if (loadWalletLedger().some((entry) => entry.type === "withdraw_cancelled" && entry.withdrawalId === withdrawalId)) return loadWalletWithdrawals();
+  let cancelled: WalletWithdrawal | undefined;
+  const withdrawals = loadWalletWithdrawals().map((withdrawal) => {
+    if (withdrawal.id !== withdrawalId || withdrawal.status !== "Requested") return withdrawal;
+    cancelled = {
+      ...withdrawal,
+      status: "Cancelled",
+      cancelledAt: new Date().toISOString(),
+      adminNote: note,
+      handledByStaffId: staff.staffId,
+      handledByStaffName: staff.staffName
+    };
+    return cancelled;
+  });
+  saveWalletWithdrawals(withdrawals);
+  if (cancelled) {
+    addWalletLedger({
+      customerMobile: cancelled.customerMobile,
+      type: "withdraw_cancelled",
+      amount: cancelled.amount,
+      withdrawalId: cancelled.id,
+      note
+    });
+  }
+  return withdrawals;
 }
 
 function addWalletLedger(input: Omit<WalletLedgerEntry, "id" | "at">): WalletLedgerEntry {

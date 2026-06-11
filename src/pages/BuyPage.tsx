@@ -10,6 +10,7 @@ import { loadCustomerPreferences, saveReceivingWallet } from "../lib/preferences
 import type { Network } from "../lib/types";
 
 type PayMethod = "upi" | "account" | "cdm";
+type DeliveryMode = "wallet" | "external";
 
 export function BuyPage() {
   const session = loadCustomerSession();
@@ -18,6 +19,7 @@ export function BuyPage() {
   const [amount, setAmount] = useState("");
   const [network, setNetwork] = useState<Network>(defaultNetwork);
   const [wallet, setWallet] = useState("");
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("wallet");
   const [savedWalletId, setSavedWalletId] = useState("");
   const [saveWalletForFuture, setSaveWalletForFuture] = useState(false);
   const [method, setMethod] = useState<PayMethod | null>(null);
@@ -46,16 +48,17 @@ export function BuyPage() {
       customerMobile: session.mobile,
       amount: Number(amount),
       rate: settings.rates.buy,
-      network,
-      wallet,
+      network: deliveryMode === "wallet" ? "Coinvera Wallet" : network,
+      wallet: deliveryMode === "wallet" ? "Credit to Coinvera wallet balance" : wallet,
       payment: `${method.toUpperCase()} payment submitted${method === "account" && selectedAccount ? ` to ${selectedAccount.label}` : ""}${method === "cdm" && selectedCdm ? ` to ${selectedCdm.label}` : ""}`,
       kyc: `Basic account: ${session.fullName}. No KYC verification required in prototype.`,
       paymentMethod: method,
+      deliveryMethod: deliveryMode,
       paymentReference: reference,
       paymentScreenshot: screenshot,
       status: "Payment Submitted"
     });
-    if (saveWalletForFuture) {
+    if (deliveryMode === "external" && saveWalletForFuture) {
       saveReceivingWallet(session.mobile, { address: wallet, network });
     }
     setToast(`${order.id} submitted. Opening order chat.`);
@@ -83,25 +86,41 @@ export function BuyPage() {
               USDT amount
               <input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min="1" step="0.01" placeholder="100" />
             </label>
-            <label>
-              Blockchain
-              <select
-                value={network}
-                onChange={(event) => {
-                  setNetwork(event.target.value as Network);
-                  setSavedWalletId("");
-                }}
-              >
-                {settings.blockchains.map((chain) => (
-                  <option value={chain.name} key={chain.id}>{chain.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="wide">
-              Wallet address
-              <input value={wallet} onChange={(event) => setWallet(event.target.value)} placeholder="Enter receiving wallet address" />
-            </label>
-            {savedWallets.length > 0 && (
+            <div className="paymentTabs deliveryTabs wide">
+              <button type="button" className={deliveryMode === "wallet" ? "active" : ""} onClick={() => setDeliveryMode("wallet")}>Receive in Coinvera Wallet</button>
+              <button type="button" className={deliveryMode === "external" ? "active" : ""} onClick={() => setDeliveryMode("external")}>Send to external address</button>
+            </div>
+            {deliveryMode === "wallet" ? (
+              <div className="walletDeliveryNote wide">
+                <Wallet size={18} />
+                <div>
+                  <strong>USDT will be added to your Coinvera wallet.</strong>
+                  <span>You can withdraw later from Wallet after admin verifies and completes this buy order.</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <label>
+                  Blockchain
+                  <select
+                    value={network}
+                    onChange={(event) => {
+                      setNetwork(event.target.value as Network);
+                      setSavedWalletId("");
+                    }}
+                  >
+                    {settings.blockchains.map((chain) => (
+                      <option value={chain.name} key={chain.id}>{chain.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="wide">
+                  Wallet address
+                  <input value={wallet} onChange={(event) => setWallet(event.target.value)} placeholder="Enter receiving wallet address" />
+                </label>
+              </>
+            )}
+            {deliveryMode === "external" && savedWallets.length > 0 && (
               <label className="wide">
                 Use saved wallet
                 <select
@@ -120,10 +139,10 @@ export function BuyPage() {
                 </select>
               </label>
             )}
-            <label className="checkLine wide">
+            {deliveryMode === "external" && <label className="checkLine wide">
               <input checked={saveWalletForFuture} onChange={(event) => setSaveWalletForFuture(event.target.checked)} type="checkbox" />
               Save this USDT address for easy future withdrawal
-            </label>
+            </label>}
             <div className="buyEstimateCard wide">
               <span>Approx amount payable</span>
               <strong>{money(total)}</strong>
@@ -132,7 +151,7 @@ export function BuyPage() {
                 <small>{Number(amount || 0)} USDT * {settings.rates.buy}</small>
               </div>
             </div>
-            <button className="primaryButton wide" type="button" disabled={!Number(amount) || !wallet} onClick={() => setMethod("upi")}>
+            <button className="primaryButton wide" type="button" disabled={!Number(amount) || (deliveryMode === "external" && !wallet)} onClick={() => setMethod("upi")}>
               Continue to payment
             </button>
           </div>

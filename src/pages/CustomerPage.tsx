@@ -5,28 +5,35 @@ import { Brand } from "../components/Brand";
 import { MarketDashboard } from "../components/MarketDashboard";
 import { loadCustomerSession, logoutCustomer } from "../lib/auth";
 import { loadDeskSettings, money } from "../lib/desk";
+import { getCustomerWalletBalance, loadWalletLedger } from "../lib/wallet";
 import type { KycSession } from "../lib/kyc";
 
 export function CustomerPage() {
   const [session, setSession] = useState<KycSession | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [settings, setSettings] = useState(loadDeskSettings());
+  const [walletTick, setWalletTick] = useState(0);
+  const balance = session ? getCustomerWalletBalance(session.mobile) : null;
 
   useEffect(() => {
     setSession(loadCustomerSession());
     const sync = () => {
       setSession(loadCustomerSession());
       setSettings(loadDeskSettings());
+      loadWalletLedger();
+      setWalletTick((value) => value + 1);
     };
     window.addEventListener("coinvera-auth-updated", sync);
     window.addEventListener("desk-settings-updated", sync);
+    window.addEventListener("coinvera-wallet-updated", sync);
     window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener("coinvera-auth-updated", sync);
       window.removeEventListener("desk-settings-updated", sync);
+      window.removeEventListener("coinvera-wallet-updated", sync);
       window.removeEventListener("storage", sync);
     };
-  }, []);
+  }, [walletTick]);
 
   function logout() {
     logoutCustomer();
@@ -37,6 +44,13 @@ export function CustomerPage() {
     <main className="customerShell">
       <nav className="topNav">
         <Brand />
+        {session && balance && (
+          <a className="walletNavBox" href="/wallet" aria-label="Coinvera wallet balance">
+            <Wallet size={16} />
+            <span>Wallet</span>
+            <strong>{balance.available.toLocaleString("en-IN", { maximumFractionDigits: 4 })} USDT</strong>
+          </a>
+        )}
         <div className="navActions">
           {session ? (
             <>

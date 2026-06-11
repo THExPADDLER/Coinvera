@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, limit, orderBy, query, setDoc } from "firebase/firestore";
 import { getFirebaseServices } from "./firebase";
-import type { AdminActivityLog, CustomerPreferences, CustomerUser, DeskOrder, DeskSettings, WalletDeposit, WalletLedgerEntry } from "./types";
+import type { AdminActivityLog, CustomerPreferences, CustomerUser, DeskOrder, DeskSettings, WalletDeposit, WalletLedgerEntry, WalletWithdrawal } from "./types";
 
 const root = "CoinveraData";
 const storageKey = "usdt-inr-desk-orders";
@@ -10,6 +10,7 @@ const usersStorageKey = "coinvera-customer-users";
 const preferencesStorageKey = "coinvera-customer-preferences";
 const walletDepositsStorageKey = "coinvera-wallet-deposits";
 const walletLedgerStorageKey = "coinvera-wallet-ledger";
+const walletWithdrawalsStorageKey = "coinvera-wallet-withdrawals";
 
 function safeLocalSet(key: string, value: unknown) {
   try {
@@ -24,14 +25,15 @@ export async function syncFirebaseToLocal(): Promise<void> {
   if (!services) return;
 
   try {
-    const [orderSnap, userSnap, logSnap, settingsSnap, preferenceSnap, depositSnap, ledgerSnap] = await Promise.all([
+    const [orderSnap, userSnap, logSnap, settingsSnap, preferenceSnap, depositSnap, ledgerSnap, withdrawalSnap] = await Promise.all([
       getDocs(query(collection(services.db, root, "orders", "items"), orderBy("createdAt", "desc"), limit(500))),
       getDocs(query(collection(services.db, root, "users", "items"), orderBy("lastLoginAt", "desc"), limit(500))),
       getDocs(query(collection(services.db, root, "activityLogs", "items"), orderBy("at", "desc"), limit(300))),
       getDocs(query(collection(services.db, root, "settings", "items"), limit(1))),
       getDocs(query(collection(services.db, root, "customerPreferences", "items"), limit(500))),
       getDocs(query(collection(services.db, root, "walletDeposits", "items"), orderBy("createdAt", "desc"), limit(500))),
-      getDocs(query(collection(services.db, root, "walletLedger", "items"), orderBy("at", "desc"), limit(800)))
+      getDocs(query(collection(services.db, root, "walletLedger", "items"), orderBy("at", "desc"), limit(800))),
+      getDocs(query(collection(services.db, root, "walletWithdrawals", "items"), orderBy("createdAt", "desc"), limit(500)))
     ]);
 
     const orders = orderSnap.docs.map((item) => item.data() as DeskOrder);
@@ -41,6 +43,7 @@ export async function syncFirebaseToLocal(): Promise<void> {
     const preferences = preferenceSnap.docs.map((item) => item.data() as CustomerPreferences);
     const deposits = depositSnap.docs.map((item) => item.data() as WalletDeposit);
     const ledger = ledgerSnap.docs.map((item) => item.data() as WalletLedgerEntry);
+    const withdrawals = withdrawalSnap.docs.map((item) => item.data() as WalletWithdrawal);
 
     if (orders.length) safeLocalSet(storageKey, orders);
     if (users.length) safeLocalSet(usersStorageKey, users);
@@ -49,6 +52,7 @@ export async function syncFirebaseToLocal(): Promise<void> {
     if (preferences.length) safeLocalSet(preferencesStorageKey, preferences);
     if (deposits.length) safeLocalSet(walletDepositsStorageKey, deposits);
     if (ledger.length) safeLocalSet(walletLedgerStorageKey, ledger);
+    if (withdrawals.length) safeLocalSet(walletWithdrawalsStorageKey, withdrawals);
 
     window.dispatchEvent(new Event("desk-orders-updated"));
     window.dispatchEvent(new Event("coinvera-users-updated"));
@@ -101,4 +105,10 @@ export async function saveWalletLedgerToFirebase(entries: WalletLedgerEntry[]): 
   const services = getFirebaseServices();
   if (!services) return;
   await Promise.all(entries.map((entry) => setDoc(doc(services.db, root, "walletLedger", "items", entry.id), entry, { merge: true })));
+}
+
+export async function saveWalletWithdrawalsToFirebase(withdrawals: WalletWithdrawal[]): Promise<void> {
+  const services = getFirebaseServices();
+  if (!services) return;
+  await Promise.all(withdrawals.map((withdrawal) => setDoc(doc(services.db, root, "walletWithdrawals", "items", withdrawal.id), withdrawal, { merge: true })));
 }

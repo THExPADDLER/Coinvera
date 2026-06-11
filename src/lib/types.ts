@@ -33,6 +33,7 @@ export interface DeskOrder {
   kyc: string;
   status: OrderStatus;
   paymentMethod?: "upi" | "account" | "cdm";
+  deliveryMethod?: "external" | "wallet";
   paymentReference?: string;
   paymentScreenshot?: string;
   customerMobile?: string;
@@ -115,6 +116,7 @@ export interface CustomerPreferences {
 }
 
 export type WalletDepositStatus = "Pending Verification" | "Available" | "Rejected";
+export type WalletWithdrawalStatus = "Requested" | "Completed" | "Cancelled";
 
 export interface WalletDeposit {
   id: string;
@@ -134,14 +136,42 @@ export interface WalletDeposit {
   verifiedByStaffName?: string;
 }
 
+export interface WalletWithdrawal {
+  id: string;
+  customerMobile: string;
+  customerName: string;
+  amount: number;
+  network: Network;
+  address: string;
+  status: WalletWithdrawalStatus;
+  createdAt: string;
+  completedAt?: string;
+  cancelledAt?: string;
+  txHash?: string;
+  adminNote?: string;
+  handledByStaffId?: string;
+  handledByStaffName?: string;
+}
+
 export interface WalletLedgerEntry {
   id: string;
   customerMobile: string;
   at: string;
-  type: "deposit_pending" | "deposit_verified" | "deposit_rejected" | "sell_locked" | "sell_completed" | "sell_cancelled";
+  type:
+    | "deposit_pending"
+    | "deposit_verified"
+    | "deposit_rejected"
+    | "buy_credited"
+    | "sell_locked"
+    | "sell_completed"
+    | "sell_cancelled"
+    | "withdraw_locked"
+    | "withdraw_completed"
+    | "withdraw_cancelled";
   amount: number;
   orderId?: string;
   depositId?: string;
+  withdrawalId?: string;
   note: string;
 }
 
