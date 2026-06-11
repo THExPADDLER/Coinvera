@@ -1481,6 +1481,21 @@ button.qrBox:disabled {
   padding: 24px 0 56px;
   display: grid;
   gap: 20px;
+  position: relative;
+  isolation: isolate;
+}
+
+.walletShell::before {
+  content: "";
+  position: absolute;
+  inset: -80px -8% auto;
+  height: 360px;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 16% 22%, rgba(0, 211, 149, 0.24), transparent 27%),
+    radial-gradient(circle at 80% 4%, rgba(47, 100, 167, 0.18), transparent 25%);
+  filter: blur(8px);
+  animation: walletAura 8s ease-in-out infinite alternate;
 }
 
 .walletHero {
@@ -1498,6 +1513,21 @@ button.qrBox:disabled {
   background: rgba(255, 255, 255, 0.86);
   box-shadow: 0 20px 58px rgba(15, 42, 37, 0.09);
   backdrop-filter: blur(18px);
+  position: relative;
+  overflow: hidden;
+  animation: walletRise 0.72s ease both;
+}
+
+.walletHero > div:first-child::before,
+.walletHistoryPanel::before,
+.walletActionCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0 35%, rgba(255, 255, 255, 0.64) 45%, transparent 56% 100%);
+  transform: translateX(-120%);
+  animation: walletSheen 6.4s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .walletHero h1 {
@@ -1528,6 +1558,27 @@ button.qrBox:disabled {
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 253, 250, 0.92));
   box-shadow: 0 20px 52px rgba(15, 42, 37, 0.09);
+  animation: walletFloatIn 0.72s ease both, walletFloat 5.8s ease-in-out infinite;
+}
+
+.walletBalanceGrid .metricCard:nth-child(1) {
+  animation-delay: 0.08s, 0.9s;
+}
+
+.walletBalanceGrid .metricCard:nth-child(2) {
+  animation-delay: 0.16s, 1.5s;
+}
+
+.walletBalanceGrid .metricCard:nth-child(3) {
+  animation-delay: 0.24s, 2.1s;
+}
+
+.walletBalanceGrid .metricCard:hover,
+.walletActionCard:hover,
+.walletHistoryPanel:hover {
+  transform: translateY(-4px);
+  border-color: rgba(17, 146, 118, 0.32);
+  box-shadow: 0 28px 74px rgba(15, 42, 37, 0.14);
 }
 
 .walletActionCard {
@@ -1538,6 +1589,26 @@ button.qrBox:disabled {
   gap: 14px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(243, 252, 248, 0.92));
   box-shadow: 0 22px 62px rgba(15, 42, 37, 0.1);
+  position: relative;
+  overflow: hidden;
+  animation: walletRise 0.72s ease both;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.walletGrid .walletActionCard:nth-child(1) {
+  animation-delay: 0.14s;
+}
+
+.walletGrid .walletHistoryPanel:nth-child(2) {
+  animation-delay: 0.22s;
+}
+
+.walletGrid .walletActionCard:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.walletGrid .walletHistoryPanel:nth-child(4) {
+  animation-delay: 0.38s;
 }
 
 .walletCardHead {
@@ -1555,6 +1626,11 @@ button.qrBox:disabled {
   font-size: 13px;
   text-transform: uppercase;
   font-weight: 950;
+}
+
+.walletCardHead span svg,
+.walletBalanceGrid .metricCard svg {
+  animation: walletIconPulse 2.8s ease-in-out infinite;
 }
 
 .walletCardHead strong {
@@ -1593,6 +1669,15 @@ button.qrBox:disabled {
   color: var(--ink);
   font: inherit;
   font-weight: 760;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.walletFormStack input:focus,
+.walletFormStack select:focus {
+  outline: none;
+  border-color: rgba(0, 211, 149, 0.72);
+  box-shadow: 0 0 0 4px rgba(0, 211, 149, 0.12);
+  transform: translateY(-1px);
 }
 
 .walletFormStack .shortAmountInput {
@@ -1610,6 +1695,7 @@ button.qrBox:disabled {
   display: grid;
   gap: 12px;
   align-content: start;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 
 .walletHistoryPanel.wide {
@@ -1643,6 +1729,14 @@ button.qrBox:disabled {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #f8fbfa;
+  animation: walletItemIn 0.5s ease both;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.walletListItem:hover {
+  transform: translateX(4px);
+  border-color: rgba(17, 146, 118, 0.28);
+  background: #ffffff;
 }
 
 .walletListItem div {
@@ -1668,11 +1762,20 @@ button.qrBox:disabled {
   padding: 12px;
   border-radius: 14px;
   box-shadow: none;
+  position: relative;
+  overflow: hidden;
 }
 
 .compactWalletDisplay .sellerQrBox {
   width: 146px;
   height: 146px;
+  animation: walletQrBreathe 3.8s ease-in-out infinite;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.compactWalletDisplay .sellerQrBox:hover {
+  transform: scale(1.035) rotate(-0.5deg);
+  box-shadow: 0 18px 38px rgba(15, 42, 37, 0.18);
 }
 
 .compactWalletDisplay strong {
@@ -2591,6 +2694,32 @@ tbody tr:hover {
   place-items: center;
   color: var(--muted);
   font-weight: 760;
+  position: relative;
+  overflow: hidden;
+}
+
+.walletHistoryPanel .emptyState::before {
+  content: "";
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 211, 149, 0.26);
+  background:
+    radial-gradient(circle, rgba(0, 211, 149, 0.18), transparent 54%),
+    conic-gradient(from 90deg, rgba(0, 211, 149, 0.08), rgba(47, 100, 167, 0.28), rgba(0, 211, 149, 0.08));
+  position: absolute;
+  top: calc(50% - 54px);
+  animation: walletEmptySpin 6s linear infinite, walletEmptyPulse 2.6s ease-in-out infinite;
+}
+
+.walletHistoryPanel .emptyState::after {
+  content: "";
+  width: min(220px, 80%);
+  height: 1px;
+  position: absolute;
+  top: calc(50% + 38px);
+  background: linear-gradient(90deg, transparent, rgba(0, 211, 149, 0.42), transparent);
+  animation: walletLineScan 2.4s ease-in-out infinite;
 }
 
 .toast {
@@ -2791,6 +2920,128 @@ tbody tr:hover {
   50% {
     transform: translateX(-50%) scale(1.08);
     opacity: 0.36;
+  }
+}
+
+@keyframes walletAura {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(0.98);
+    opacity: 0.72;
+  }
+  100% {
+    transform: translate3d(2%, 2%, 0) scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes walletRise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes walletFloatIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px) rotateX(6deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateX(0);
+  }
+}
+
+@keyframes walletFloat {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -5px;
+  }
+}
+
+@keyframes walletSheen {
+  0%,
+  46% {
+    transform: translateX(-125%);
+    opacity: 0;
+  }
+  58% {
+    opacity: 0.72;
+  }
+  74%,
+  100% {
+    transform: translateX(125%);
+    opacity: 0;
+  }
+}
+
+@keyframes walletIconPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.86;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
+@keyframes walletQrBreathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 211, 149, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(0, 211, 149, 0);
+  }
+}
+
+@keyframes walletItemIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes walletEmptySpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes walletEmptyPulse {
+  0%,
+  100% {
+    opacity: 0.64;
+    scale: 0.92;
+  }
+  50% {
+    opacity: 1;
+    scale: 1.08;
+  }
+}
+
+@keyframes walletLineScan {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scaleX(0.66);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scaleX(1);
   }
 }
 
@@ -3037,5 +3288,24 @@ tbody tr:hover {
 
   .brandTagline {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .walletShell::before,
+  .walletHero > div:first-child,
+  .walletHero > div:first-child::before,
+  .walletHistoryPanel,
+  .walletHistoryPanel::before,
+  .walletActionCard,
+  .walletActionCard::before,
+  .walletBalanceGrid .metricCard,
+  .walletCardHead span svg,
+  .walletBalanceGrid .metricCard svg,
+  .compactWalletDisplay .sellerQrBox,
+  .walletListItem,
+  .walletHistoryPanel .emptyState::before,
+  .walletHistoryPanel .emptyState::after {
+    animation: none;
   }
 }
