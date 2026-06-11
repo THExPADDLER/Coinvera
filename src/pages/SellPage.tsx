@@ -6,6 +6,7 @@ import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
 import { createOrder, loadDeskSettings, money } from "../lib/desk";
 import { imageFileToCompressedDataUrl, imageSizeLabel } from "../lib/files";
+import { loadCustomerPreferences, savePayoutMethod } from "../lib/preferences";
 import type { Network } from "../lib/types";
 
 export function SellPage() {
@@ -16,6 +17,8 @@ export function SellPage() {
   const [network, setNetwork] = useState<Network>(defaultNetwork);
   const [txHash, setTxHash] = useState("");
   const [payoutMode, setPayoutMode] = useState<"upi" | "account">("upi");
+  const [savedPayoutId, setSavedPayoutId] = useState("");
+  const [savePayoutForFuture, setSavePayoutForFuture] = useState(false);
   const [upiId, setUpiId] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [confirmAccountNumber, setConfirmAccountNumber] = useState("");
@@ -27,6 +30,8 @@ export function SellPage() {
   const [toast, setToast] = useState("");
   const total = useMemo(() => Number(amount || 0) * settings.rates.sell, [amount, settings.rates.sell]);
   const selectedChain = settings.blockchains.find((chain) => chain.name === network) || settings.blockchains[0];
+  const preferences = session ? loadCustomerPreferences(session.mobile) : null;
+  const savedPayouts = preferences?.payoutMethods.filter((item) => item.type === payoutMode) || [];
 
   if (!session) {
     return (
@@ -69,6 +74,13 @@ export function SellPage() {
       paymentScreenshot: screenshot,
       status: "USDT Submitted"
     });
+    if (savePayoutForFuture) {
+      if (payoutMode === "upi") {
+        savePayoutMethod(session.mobile, { type: "upi", upiId });
+      } else {
+        savePayoutMethod(session.mobile, { type: "account", accountNumber, ifsc, bankName });
+      }
+    }
     setToast(`${order.id} created. Opening order chat.`);
     window.setTimeout(() => {
       window.location.href = `/chat/${order.id}`;
@@ -132,9 +144,36 @@ export function SellPage() {
             <div className="wide payoutPanel">
               <h3>Select INR payout mode</h3>
               <div className="paymentTabs">
-                <button type="button" className={payoutMode === "upi" ? "active" : ""} onClick={() => setPayoutMode("upi")}>UPI</button>
-                <button type="button" className={payoutMode === "account" ? "active" : ""} onClick={() => setPayoutMode("account")}>Account Transfer</button>
+                <button type="button" className={payoutMode === "upi" ? "active" : ""} onClick={() => { setPayoutMode("upi"); setSavedPayoutId(""); }}>UPI</button>
+                <button type="button" className={payoutMode === "account" ? "active" : ""} onClick={() => { setPayoutMode("account"); setSavedPayoutId(""); }}>Account Transfer</button>
               </div>
+              {savedPayouts.length > 0 && (
+                <label>
+                  Use saved payout
+                  <select
+                    value={savedPayoutId}
+                    onChange={(event) => {
+                      const nextId = event.target.value;
+                      setSavedPayoutId(nextId);
+                      const saved = savedPayouts.find((item) => item.id === nextId);
+                      if (saved?.type === "upi") {
+                        setUpiId(saved.upiId);
+                      }
+                      if (saved?.type === "account") {
+                        setAccountNumber(saved.accountNumber);
+                        setConfirmAccountNumber(saved.accountNumber);
+                        setIfsc(saved.ifsc);
+                        setBankName(saved.bankName);
+                      }
+                    }}
+                  >
+                    <option value="">Select saved payout</option>
+                    {savedPayouts.map((saved) => (
+                      <option value={saved.id} key={saved.id}>{saved.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {payoutMode === "upi" ? (
                 <label>
                   UPI ID
@@ -160,6 +199,10 @@ export function SellPage() {
                   </label>
                 </div>
               )}
+              <label className="checkLine">
+                <input checked={savePayoutForFuture} onChange={(event) => setSavePayoutForFuture(event.target.checked)} type="checkbox" />
+                Save this payout detail for faster future payouts
+              </label>
             </div>
             <label className="uploadLine wide">
               <Upload size={18} />

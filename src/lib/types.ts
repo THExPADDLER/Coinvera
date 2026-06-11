@@ -78,6 +78,42 @@ export interface CustomerUser {
   status: "active" | "inactive";
 }
 
+export interface SavedReceivingWallet {
+  id: string;
+  label: string;
+  network: Network;
+  address: string;
+  createdAt: string;
+  lastUsedAt: string;
+}
+
+export type SavedPayoutMethod =
+  | {
+      id: string;
+      type: "upi";
+      label: string;
+      upiId: string;
+      createdAt: string;
+      lastUsedAt: string;
+    }
+  | {
+      id: string;
+      type: "account";
+      label: string;
+      accountNumber: string;
+      ifsc: string;
+      bankName: string;
+      createdAt: string;
+      lastUsedAt: string;
+    };
+
+export interface CustomerPreferences {
+  mobile: string;
+  receivingWallets: SavedReceivingWallet[];
+  payoutMethods: SavedPayoutMethod[];
+  updatedAt: string;
+}
+
 export interface DeskRates {
   buy: number;
   sell: number;

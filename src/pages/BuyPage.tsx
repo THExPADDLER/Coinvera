@@ -6,6 +6,7 @@ import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
 import { createOrder, loadDeskSettings, money } from "../lib/desk";
 import { imageFileToCompressedDataUrl, imageSizeLabel } from "../lib/files";
+import { loadCustomerPreferences, saveReceivingWallet } from "../lib/preferences";
 import type { Network } from "../lib/types";
 
 type PayMethod = "upi" | "account" | "cdm";
@@ -17,6 +18,8 @@ export function BuyPage() {
   const [amount, setAmount] = useState("");
   const [network, setNetwork] = useState<Network>(defaultNetwork);
   const [wallet, setWallet] = useState("");
+  const [savedWalletId, setSavedWalletId] = useState("");
+  const [saveWalletForFuture, setSaveWalletForFuture] = useState(false);
   const [method, setMethod] = useState<PayMethod | null>(null);
   const [accountId, setAccountId] = useState(settings.accountTransfers[0]?.id || "");
   const [cdmId, setCdmId] = useState(settings.cdmAccounts[0]?.id || "");
@@ -28,6 +31,8 @@ export function BuyPage() {
   const total = useMemo(() => Number(amount || 0) * settings.rates.buy, [amount, settings.rates.buy]);
   const selectedAccount = settings.accountTransfers.find((account) => account.id === accountId) || settings.accountTransfers[0];
   const selectedCdm = settings.cdmAccounts.find((account) => account.id === cdmId) || settings.cdmAccounts[0];
+  const preferences = session ? loadCustomerPreferences(session.mobile) : null;
+  const savedWallets = preferences?.receivingWallets.filter((item) => item.network === network) || [];
 
   if (!session) return <RequireLogin title="Login required to buy USDT" />;
 
@@ -50,6 +55,9 @@ export function BuyPage() {
       paymentScreenshot: screenshot,
       status: "Payment Submitted"
     });
+    if (saveWalletForFuture) {
+      saveReceivingWallet(session.mobile, { address: wallet, network });
+    }
     setToast(`${order.id} submitted. Opening order chat.`);
     window.setTimeout(() => {
       window.location.href = `/chat/${order.id}`;
@@ -77,7 +85,13 @@ export function BuyPage() {
             </label>
             <label>
               Blockchain
-              <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
+              <select
+                value={network}
+                onChange={(event) => {
+                  setNetwork(event.target.value as Network);
+                  setSavedWalletId("");
+                }}
+              >
                 {settings.blockchains.map((chain) => (
                   <option value={chain.name} key={chain.id}>{chain.name}</option>
                 ))}
@@ -86,6 +100,29 @@ export function BuyPage() {
             <label className="wide">
               Wallet address
               <input value={wallet} onChange={(event) => setWallet(event.target.value)} placeholder="Enter receiving wallet address" />
+            </label>
+            {savedWallets.length > 0 && (
+              <label className="wide">
+                Use saved wallet
+                <select
+                  value={savedWalletId}
+                  onChange={(event) => {
+                    const nextId = event.target.value;
+                    setSavedWalletId(nextId);
+                    const saved = savedWallets.find((item) => item.id === nextId);
+                    if (saved) setWallet(saved.address);
+                  }}
+                >
+                  <option value="">Select saved wallet</option>
+                  {savedWallets.map((saved) => (
+                    <option value={saved.id} key={saved.id}>{saved.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="checkLine wide">
+              <input checked={saveWalletForFuture} onChange={(event) => setSaveWalletForFuture(event.target.checked)} type="checkbox" />
+              Save this USDT address for easy future withdrawal
             </label>
             <div className="buyEstimateCard wide">
               <span>Approx amount payable</span>
