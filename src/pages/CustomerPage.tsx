@@ -1,4 +1,4 @@
-import { ArrowRight, CircleDollarSign, Landmark, LogOut, MessageCircle, ShieldCheck, UserRound, Wallet } from "lucide-react";
+import { ArrowRight, CircleDollarSign, Clock3, Landmark, LogOut, Menu, MessageCircle, ShieldCheck, Star, UserRound, Wallet, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AuthPanel } from "../components/AuthPanel";
 import { Brand } from "../components/Brand";
@@ -11,6 +11,7 @@ import type { KycSession } from "../lib/kyc";
 export function CustomerPage() {
   const [session, setSession] = useState<KycSession | null>(null);
   const [showAuth, setShowAuth] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [settings, setSettings] = useState(loadDeskSettings());
   const [walletTick, setWalletTick] = useState(0);
   const balance = session ? getCustomerWalletBalance(session.mobile) : null;
@@ -38,6 +39,7 @@ export function CustomerPage() {
   function logout() {
     logoutCustomer();
     setSession(null);
+    setMenuOpen(false);
   }
 
   return (
@@ -52,33 +54,60 @@ export function CustomerPage() {
           </a>
         )}
         <div className="navActions">
-          {session ? (
-            <>
-              <a className="softButton" href="/wallet">
-                <Wallet size={16} />
-                Wallet
-              </a>
-              <a className="softButton" href="/orders">
-                My Orders
-              </a>
-              <a className="iconButton" href="/messages" aria-label="Messages">
-                <MessageCircle size={19} />
-              </a>
-              <button className="softButton" type="button" onClick={logout}>
-                <LogOut size={16} />
-                Logout
-              </button>
-            </>
-          ) : (
-            <button className="softButton" type="button" onClick={() => setShowAuth(true)}>
-              <UserRound size={17} />
-              Login / Signup
-            </button>
+          <button className="iconButton menuButton" type="button" onClick={() => setMenuOpen((value) => !value)} aria-label="Open menu">
+            {menuOpen ? <X size={22} /> : <Menu size={23} />}
+          </button>
+          {menuOpen && (
+            <div className="navMenuPanel">
+              {session ? (
+                <>
+                  <a href="/profile"><UserRound size={17} /> Profile</a>
+                  <a href="/wallet"><Wallet size={17} /> Wallet</a>
+                  <a href="/orders"><CircleDollarSign size={17} /> My Orders</a>
+                  <a href="/messages"><MessageCircle size={17} /> Messages</a>
+                </>
+              ) : (
+                <button type="button" onClick={() => { setShowAuth(true); setMenuOpen(false); }}><UserRound size={17} /> Login / Signup</button>
+              )}
+              <a href="/about"><ShieldCheck size={17} /> About Coinvera</a>
+              <a href="/reviews"><Star size={17} /> Reviews & Feedback</a>
+              {session && <button type="button" onClick={logout}><LogOut size={17} /> Logout</button>}
+            </div>
           )}
         </div>
       </nav>
 
-      <MarketDashboard />
+      <section className="exchangeHero">
+        <div className="exchangeHeroCopy">
+          <p className="eyebrow">USDT-INR exchange desk</p>
+          <h1>Buy and sell USDT with INR, safely and clearly.</h1>
+          <p>Coinvera is built for fast INR settlement, verified wallet balance, order chat proof, and clean completion tracking.</p>
+          <div className="exchangeHeroActions">
+            {session ? (
+              <>
+                <a className="primaryButton" href="/buy"><CircleDollarSign size={18} /> Buy USDT</a>
+                <a className="softButton" href="/sell"><Landmark size={18} /> Sell USDT</a>
+              </>
+            ) : (
+              <button className="primaryButton" type="button" onClick={() => setShowAuth(true)}><UserRound size={18} /> Login / Signup</button>
+            )}
+          </div>
+        </div>
+        <div className="exchangeRateDesk">
+          <div>
+            <span>Buy rate</span>
+            <strong>{money(settings.rates.buy)} / USDT</strong>
+          </div>
+          <div>
+            <span>Sell rate</span>
+            <strong>{money(settings.rates.sell)} / USDT</strong>
+          </div>
+          <div className="wide">
+            <Clock3 size={20} />
+            <span>Safe and trusted order completion targeted within 30 minutes.</span>
+          </div>
+        </div>
+      </section>
 
       <section className="tradeChoiceSection" id="trade-request">
         <div>
@@ -135,10 +164,24 @@ export function CustomerPage() {
           INR receivable and payable tracked
         </div>
         <div>
+          <Clock3 size={19} />
+          30 minute completion target
+        </div>
+        <div>
           <Wallet size={19} />
           USDT network captured per order
         </div>
       </section>
+
+      <section className="homeReviewBand">
+        <div>
+          <p className="eyebrow">Customer trust</p>
+          <h2>Safe, trusted and fast USDT-INR transactions.</h2>
+        </div>
+        <a className="softButton" href="/reviews"><Star size={17} /> View Reviews</a>
+      </section>
+
+      <MarketDashboard />
 
       {showAuth && <AuthPanel onClose={() => setShowAuth(false)} onLogin={setSession} />}
     </main>

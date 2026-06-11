@@ -92,3 +92,19 @@ export function savePayoutMethod(mobile: string, input: { type: "upi"; upiId: st
     payoutMethods: [payout, ...preferences.payoutMethods.filter((item) => item.id !== payout.id)].slice(0, 12)
   });
 }
+
+export function removeReceivingWallet(mobile: string, walletId: string): CustomerPreferences {
+  const preferences = loadCustomerPreferences(mobile);
+  return saveCustomerPreferences({
+    ...preferences,
+    receivingWallets: preferences.receivingWallets.filter((wallet) => wallet.id !== walletId)
+  });
+}
+
+export function removePayoutMethod(mobile: string, methodId: string): CustomerPreferences {
+  const preferences = loadCustomerPreferences(mobile);
+  return saveCustomerPreferences({
+    ...preferences,
+    payoutMethods: preferences.payoutMethods.filter((method) => method.id !== methodId)
+  });
+}
