@@ -82,6 +82,28 @@ button {
   z-index: 2;
 }
 
+.topNav {
+  min-height: 92px;
+  margin-top: 14px;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 22px;
+  background: rgba(4, 15, 13, 0.52);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(22px) saturate(1.2);
+  z-index: 40;
+}
+
+.topNav .brand {
+  justify-self: start;
+}
+
+.topNav .navActions {
+  justify-self: end;
+}
+
 .adminNav {
   color: var(--ink);
 }
@@ -253,27 +275,48 @@ button {
 }
 
 .walletNavBox {
-  min-height: 46px;
-  margin-left: auto;
-  margin-right: auto;
-  padding: 0 16px;
+  min-height: 52px;
+  margin: 0;
+  padding: 5px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   color: #fff;
-  background: rgba(4, 13, 12, 0.86);
-  border: 1px solid rgba(0, 211, 149, 0.42);
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.24);
+  background: rgba(2, 12, 11, 0.9);
+  border: 1px solid rgba(0, 211, 149, 0.54);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.26), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   white-space: nowrap;
+  justify-self: center;
 }
 
-.walletNavBox span {
-  color: rgba(255, 255, 255, 0.72);
+.walletNavIcon,
+.walletNavLabel,
+.walletNavBox strong {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.walletNavIcon {
+  width: 42px;
+  justify-content: center;
+  border-radius: 999px;
+  color: #dffdf4;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.walletNavLabel {
+  padding: 0 10px 0 5px;
+  color: rgba(255, 255, 255, 0.82);
   font-weight: 800;
 }
 
 .walletNavBox strong {
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(0, 211, 149, 0.22), rgba(255, 255, 255, 0.08));
   font-weight: 950;
 }
 
@@ -300,20 +343,20 @@ button {
 }
 
 .navMenuPanel {
-  position: absolute;
-  right: 0;
-  top: calc(100% - 22px);
-  width: min(300px, calc(100vw - 32px));
-  padding: 10px;
+  position: fixed;
+  right: max(24px, calc((100vw - 1320px) / 2 + 24px));
+  top: 112px;
+  width: min(330px, calc(100vw - 36px));
+  padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  background: rgba(5, 18, 16, 0.94);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(18px);
+  border-radius: 20px;
+  background: rgba(3, 16, 14, 0.94);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(24px) saturate(1.2);
   display: grid;
   gap: 6px;
-  z-index: 8;
-  animation: walletRise 0.22s ease both;
+  z-index: 90;
+  animation: menuDropPremium 0.24s ease both;
 }
 
 .navMenuPanel a,
@@ -1012,8 +1055,8 @@ textarea:focus {
   margin: 0;
   max-width: 860px;
   color: #fff;
-  font-size: clamp(54px, 8.2vw, 112px);
-  line-height: 0.88;
+  font-size: clamp(44px, 6.8vw, 86px);
+  line-height: 0.92;
 }
 
 .exchangeHeroCopy p:not(.eyebrow) {
@@ -1951,20 +1994,52 @@ button.qrBox:disabled {
   padding: 24px 0 56px;
   display: grid;
   gap: 18px;
+  position: relative;
+  isolation: isolate;
+}
+
+.profileShell::before,
+.aboutShell::before,
+.reviewsShell::before {
+  content: "";
+  position: absolute;
+  inset: -110px -9% auto;
+  height: 420px;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(0, 211, 149, 0.24), transparent 30%),
+    radial-gradient(circle at 78% 6%, rgba(47, 100, 167, 0.19), transparent 27%);
+  filter: blur(10px);
+  animation: walletAura 8s ease-in-out infinite alternate;
 }
 
 .profileHero,
 .aboutHero,
 .reviewsHero {
-  padding: 28px;
-  border: 1px solid rgba(17, 146, 118, 0.16);
-  border-radius: 18px;
+  padding: clamp(26px, 5vw, 48px);
+  border: 1px solid rgba(17, 146, 118, 0.2);
+  border-radius: 24px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(242, 252, 248, 0.86)),
-    radial-gradient(circle at 86% 12%, rgba(0, 211, 149, 0.2), transparent 32%);
-  box-shadow: 0 24px 68px rgba(15, 42, 37, 0.1);
-  backdrop-filter: blur(18px);
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(237, 251, 245, 0.82)),
+    radial-gradient(circle at 88% 12%, rgba(0, 211, 149, 0.24), transparent 34%);
+  box-shadow: 0 34px 90px rgba(15, 42, 37, 0.13);
+  backdrop-filter: blur(24px) saturate(1.1);
   animation: walletRise 0.5s ease both;
+  position: relative;
+  overflow: hidden;
+}
+
+.profileHero::after,
+.aboutHero::after,
+.reviewsHero::after {
+  content: "";
+  position: absolute;
+  inset: auto -12% -42% 48%;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 211, 149, 0.18), transparent 66%);
+  animation: walletFloat 6s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .profileHero {
@@ -2019,12 +2094,41 @@ button.qrBox:disabled {
 .reviewCard,
 .aboutProcess,
 .reviewScoreCard {
-  padding: 20px;
-  border: 1px solid rgba(17, 146, 118, 0.14);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 18px 52px rgba(15, 42, 37, 0.08);
-  backdrop-filter: blur(14px);
+  padding: 22px;
+  border: 1px solid rgba(17, 146, 118, 0.16);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 24px 68px rgba(15, 42, 37, 0.1);
+  backdrop-filter: blur(18px);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.profileCard::before,
+.aboutValueCard::before,
+.reviewForm::before,
+.reviewCard::before,
+.aboutProcess::before,
+.reviewScoreCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0 38%, rgba(255, 255, 255, 0.58) 48%, transparent 58% 100%);
+  transform: translateX(-130%);
+  animation: walletSheen 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.profileCard:hover,
+.aboutValueCard:hover,
+.reviewForm:hover,
+.reviewCard:hover,
+.aboutProcess:hover,
+.reviewScoreCard:hover {
+  transform: translateY(-5px);
+  border-color: rgba(17, 146, 118, 0.34);
+  box-shadow: 0 32px 86px rgba(15, 42, 37, 0.15);
 }
 
 .profileCard h2,
@@ -2130,6 +2234,8 @@ button.qrBox:disabled {
   place-items: center;
   color: #fff;
   background: linear-gradient(135deg, var(--teal), var(--blue));
+  box-shadow: 0 18px 40px rgba(17, 146, 118, 0.22);
+  animation: walletIconPulse 3.2s ease-in-out infinite;
 }
 
 .aboutValueCard p,
@@ -2170,12 +2276,20 @@ button.qrBox:disabled {
 
 .reviewScoreCard {
   text-align: center;
+  color: #fff;
+  background:
+    linear-gradient(145deg, rgba(5, 28, 24, 0.94), rgba(9, 47, 41, 0.88)),
+    radial-gradient(circle at 80% 10%, rgba(0, 211, 149, 0.22), transparent 38%);
 }
 
 .reviewScoreCard strong {
   display: block;
   font-size: 62px;
   line-height: 1;
+}
+
+.reviewScoreCard span {
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .reviewForm {
@@ -2188,6 +2302,17 @@ button.qrBox:disabled {
   min-height: 150px;
   padding: 12px;
   resize: vertical;
+}
+
+.reviewForm input {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 760;
 }
 
 .ratingPicker,
@@ -2224,6 +2349,14 @@ button.qrBox:disabled {
   grid-template-columns: auto 1fr;
   gap: 14px;
   animation: walletRise 0.45s ease both;
+}
+
+.reviewList .reviewCard:nth-child(2n) {
+  animation-delay: 0.08s;
+}
+
+.reviewList .reviewCard:nth-child(3n) {
+  animation-delay: 0.16s;
 }
 
 .reviewAvatar {
@@ -2692,6 +2825,20 @@ button.qrBox:disabled {
   background: #53625e;
 }
 
+.liveSyncBadge {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(17, 146, 118, 0.26);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--tealDark);
+  background: #ecfbf6;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .credentialGrid {
   width: min(640px, 100%);
   display: grid;
@@ -3000,6 +3147,25 @@ button.qrBox:disabled {
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 24px 68px rgba(15, 42, 37, 0.1);
   backdrop-filter: blur(14px);
+}
+
+.reviewsAdminPanel {
+  width: min(1210px, calc(100% - 36px));
+  margin: 0 auto 16px;
+  padding: 18px;
+  border: 1px solid rgba(17, 146, 118, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 24px 68px rgba(15, 42, 37, 0.1);
+  backdrop-filter: blur(14px);
+}
+
+.reviewsAdminGrid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 16px;
+  align-items: start;
 }
 
 .activityLogList {
@@ -3397,6 +3563,19 @@ tbody tr:hover {
   }
 }
 
+@keyframes menuDropPremium {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
 @keyframes walletRise {
   from {
     opacity: 0;
@@ -3557,6 +3736,24 @@ tbody tr:hover {
 }
 
 @media (max-width: 980px) {
+  .topNav {
+    grid-template-columns: 1fr auto;
+  }
+
+  .topNav .brand {
+    grid-column: 1;
+  }
+
+  .topNav .navActions {
+    grid-column: 2;
+  }
+
+  .walletNavBox {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+  }
+
   .marketHeader,
   .marketGrid,
   .exchangeHero,
@@ -3597,7 +3794,8 @@ tbody tr:hover {
 
   .profileGrid,
   .aboutValueGrid,
-  .reviewsGrid {
+  .reviewsGrid,
+  .reviewsAdminGrid {
     grid-template-columns: 1fr;
   }
 }
@@ -3607,6 +3805,11 @@ tbody tr:hover {
   .adminNav {
     width: min(100% - 24px, 1210px);
     min-height: 92px;
+  }
+
+  .topNav {
+    padding: 10px;
+    border-radius: 18px;
   }
 
   .brand {
@@ -3638,6 +3841,7 @@ tbody tr:hover {
   .ordersSurface,
   .usersPanel,
   .activityLogPanel,
+  .reviewsAdminPanel,
   .walletShell,
   .profileShell,
   .aboutShell,
@@ -3711,7 +3915,7 @@ tbody tr:hover {
   }
 
   .exchangeHeroCopy h1 {
-    font-size: 48px;
+    font-size: 42px;
   }
 
   .homeReviewBand {

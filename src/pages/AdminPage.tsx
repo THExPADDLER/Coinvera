@@ -1,5 +1,5 @@
-import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, RefreshCw, ShieldCheck, SlidersHorizontal, UserCheck, UsersRound, Wallet } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, Plus, RefreshCw, ShieldCheck, SlidersHorizontal, Star, Trash2, UserCheck, UsersRound, Wallet } from "lucide-react";
+import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
@@ -11,6 +11,9 @@ import { ImageCropModal } from "../components/ImageCropModal";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { imageFileToCompressedDataUrl, isImageData } from "../lib/files";
 import { cancelWalletSell, cancelWalletWithdrawal, completeWalletSell, completeWalletWithdrawal, creditWalletFromBuy, loadWalletDeposits, loadWalletWithdrawals, rejectWalletDeposit, verifyWalletDeposit } from "../lib/wallet";
+import { syncFirebaseToLocal } from "../lib/remoteStore";
+import { deleteReview, loadReviews, saveReview, type CustomerReview } from "../lib/reviews";
+import { maskEmail } from "../lib/mask";
 
 interface AdminUser {
   username: string;
@@ -32,14 +35,15 @@ const rolePermissions: Record<AdminRole, {
   canUploadProof: boolean;
   canComplete: boolean;
   canChangeStatus: boolean;
+  canManageReviews: boolean;
 }> = {
-  owner: { canEditSettings: true, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true },
-  manager: { canEditSettings: false, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true },
-  operator: { canEditSettings: false, canExport: false, canUploadProof: true, canComplete: true, canChangeStatus: true },
-  viewer: { canEditSettings: false, canExport: false, canUploadProof: false, canComplete: false, canChangeStatus: false }
+  owner: { canEditSettings: true, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: true },
+  manager: { canEditSettings: false, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: true },
+  operator: { canEditSettings: false, canExport: false, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: false },
+  viewer: { canEditSettings: false, canExport: false, canUploadProof: false, canComplete: false, canChangeStatus: false, canManageReviews: false }
 };
 
-type AdminSection = "home" | "orders" | "users" | "settings" | "wallets" | "logs";
+type AdminSection = "home" | "orders" | "users" | "settings" | "wallets" | "reviews" | "logs";
 
 export function AdminPage() {
   const [username, setUsername] = useState("");
@@ -50,6 +54,8 @@ export function AdminPage() {
   const [logs, setLogs] = useState<AdminActivityLog[]>([]);
   const [walletDeposits, setWalletDeposits] = useState<WalletDeposit[]>([]);
   const [walletWithdrawals, setWalletWithdrawals] = useState<WalletWithdrawal[]>([]);
+  const [reviews, setReviews] = useState<CustomerReview[]>([]);
+  const [lastSyncAt, setLastSyncAt] = useState("");
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
   const [cropTarget, setCropTarget] = useState<{ draft: DeskSettings; file: File; type: "upi" | "chain"; index?: number } | null>(null);
@@ -58,6 +64,10 @@ export function AdminPage() {
   const permissions = adminUser ? rolePermissions[adminUser.role] : rolePermissions.viewer;
 
   const activeOrders = useMemo(() => orders.filter((order) => !["Completed", "Cancelled"].includes(order.status)), [orders]);
+  const visibleOrders = useMemo(() => {
+    if (!adminUser || adminUser.role !== "operator") return orders;
+    return orders.filter((order) => !order.assignedStaffId || order.assignedStaffId === adminUser.staffId);
+  }, [adminUser, orders]);
   const summary = useMemo(
     () => ({
       open: activeOrders.length,
@@ -74,6 +84,7 @@ export function AdminPage() {
     setLogs(loadActivityLogs());
     setWalletDeposits(loadWalletDeposits());
     setWalletWithdrawals(loadWalletWithdrawals());
+    setReviews(loadReviews());
     const sync = () => {
       setOrders(loadOrders());
       setUsers(loadCustomerUsers());
@@ -81,19 +92,27 @@ export function AdminPage() {
       setLogs(loadActivityLogs());
       setWalletDeposits(loadWalletDeposits());
       setWalletWithdrawals(loadWalletWithdrawals());
+      setReviews(loadReviews());
+      setLastSyncAt(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     };
+    const liveSync = window.setInterval(() => {
+      void syncFirebaseToLocal().finally(sync);
+    }, 1000);
     window.addEventListener("desk-orders-updated", sync);
     window.addEventListener("desk-settings-updated", sync);
     window.addEventListener("coinvera-activity-log-updated", sync);
     window.addEventListener("coinvera-users-updated", sync);
     window.addEventListener("coinvera-wallet-updated", sync);
+    window.addEventListener("coinvera-reviews-updated", sync);
     window.addEventListener("storage", sync);
     return () => {
+      window.clearInterval(liveSync);
       window.removeEventListener("desk-orders-updated", sync);
       window.removeEventListener("desk-settings-updated", sync);
       window.removeEventListener("coinvera-activity-log-updated", sync);
       window.removeEventListener("coinvera-users-updated", sync);
       window.removeEventListener("coinvera-wallet-updated", sync);
+      window.removeEventListener("coinvera-reviews-updated", sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
@@ -142,6 +161,40 @@ export function AdminPage() {
     setOrders(addOrderMessage(order.id, { sender: "system", text: `${adminUser.label} (${adminUser.staffId}) is now handling this chat.` }));
     setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: order.assignedStaffId ? "Reassigned chat to self" : "Took chat", orderId: order.id }));
     setToast(`${order.id} assigned to ${adminUser.staffId}`);
+  }
+
+  async function openOrder(order: DeskOrder) {
+    if (!adminUser || adminUser.role === "viewer") {
+      setToast("This role cannot open orders");
+      return;
+    }
+    await syncFirebaseToLocal();
+    const latest = loadOrders().find((item) => item.id === order.id);
+    if (!latest) {
+      setToast("Order not found after live refresh");
+      return;
+    }
+    const canOverride = adminUser.role === "owner" || adminUser.role === "manager";
+    if (latest.assignedStaffId && latest.assignedStaffId !== adminUser.staffId && !canOverride) {
+      setOrders(loadOrders());
+      setToast(`Already opened by ${latest.assignedStaffId}`);
+      return;
+    }
+    const wasAssignedToOther = latest.assignedStaffId && latest.assignedStaffId !== adminUser.staffId;
+    setOrders(assignOrderToStaff(latest.id, { staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role }));
+    setOrders(addOrderMessage(latest.id, {
+      sender: "system",
+      text: `${adminUser.label} (${adminUser.staffId}) opened and locked this order.`
+    }));
+    setLogs(addActivityLog({
+      staffId: adminUser.staffId,
+      staffName: adminUser.label,
+      role: adminUser.role,
+      action: wasAssignedToOther ? "Overrode and opened order" : "Opened and locked order",
+      orderId: latest.id,
+      detail: wasAssignedToOther ? `Previously assigned to ${latest.assignedStaffId}` : `Order locked to ${adminUser.staffId}`
+    }));
+    window.location.href = `/chat/${latest.id}?admin=1&staffId=${encodeURIComponent(adminUser.staffId)}&staffName=${encodeURIComponent(adminUser.label)}`;
   }
 
   async function uploadAdminProof(order: DeskOrder, file: File | undefined) {
@@ -274,6 +327,31 @@ export function AdminPage() {
     setToast(`${withdrawal.id} cancelled`);
   }
 
+  function saveAdminReview(input: Omit<CustomerReview, "id" | "createdAt">) {
+    if (!adminUser || !permissions.canManageReviews) {
+      setToast("This role cannot manage reviews");
+      return;
+    }
+    const nextReviews = saveReview({
+      ...input,
+      id: `REV-${Date.now().toString(36)}`,
+      createdAt: new Date().toISOString()
+    });
+    setReviews(nextReviews);
+    setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Added review", detail: `${input.name} - ${input.rating} stars` }));
+    setToast("Review added");
+  }
+
+  function removeAdminReview(review: CustomerReview) {
+    if (!adminUser || !permissions.canManageReviews) {
+      setToast("This role cannot delete reviews");
+      return;
+    }
+    setReviews(deleteReview(review.id));
+    setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Deleted review", detail: `${review.name} - ${review.rating} stars` }));
+    setToast("Review deleted");
+  }
+
   return (
     <main className="adminShell">
       <nav className="adminNav">
@@ -304,6 +382,7 @@ export function AdminPage() {
           ) : (
             <>
               <span className={`roleBadge ${adminUser.role}`}>{adminUser.label} · {adminUser.staffId}</span>
+              <span className="liveSyncBadge">Live sync {lastSyncAt || "starting"}</span>
               <button className="softButton dark" type="button" onClick={() => setOrders(loadOrders())}>
                 <RefreshCw size={16} />
                 Refresh
@@ -353,6 +432,7 @@ export function AdminPage() {
               <AdminMenuCard icon={<UsersRound size={24} />} title="Customer Users" meta="Customer registry" detail="Customer profiles, order totals, volume, and quick actions." onClick={() => setActiveSection("users")} />
               <AdminMenuCard icon={<SlidersHorizontal size={24} />} title="Rates & Payment" meta={permissions.canEditSettings ? "Editable" : "Read only"} detail="Rates, UPI QR, bank accounts, CDM, and blockchain wallets." onClick={() => setActiveSection("settings")} />
               <AdminMenuCard icon={<Wallet size={24} />} title="Wallet Desk" meta={`${walletDeposits.length} deposits / ${walletWithdrawals.length} withdrawals`} detail="Verify deposits, reject fake transfers, and process customer withdrawals." onClick={() => setActiveSection("wallets")} />
+              <AdminMenuCard icon={<Star size={24} />} title="Reviews" meta={`${reviews.length} reviews`} detail="Add dummy trust reviews and remove outdated customer feedback." onClick={() => setActiveSection("reviews")} />
               <AdminMenuCard icon={<ClipboardList size={24} />} title="Activity Log" meta={`${logs.length} entries`} detail="Staff logins, assignments, proof views, status changes, and exports." onClick={() => setActiveSection("logs")} />
             </section>
           )}
@@ -372,9 +452,10 @@ export function AdminPage() {
 
           {activeSection === "users" && <CustomerUsersSection users={users} orders={orders} onCopyMobile={copyMobile} />}
           {activeSection === "wallets" && <WalletDepositsSection deposits={walletDeposits} withdrawals={walletWithdrawals} onCancelWithdrawal={cancelWithdrawal} onCompleteWithdrawal={completeWithdrawal} onReject={rejectDeposit} onVerify={verifyDeposit} />}
+          {activeSection === "reviews" && <AdminReviewsSection canManage={permissions.canManageReviews} onDelete={removeAdminReview} onSave={saveAdminReview} reviews={reviews} />}
 
           {activeSection === "orders" && <section className="ordersSurface">
-            {orders.length === 0 ? (
+            {visibleOrders.length === 0 ? (
               <div className="emptyState">No customer orders yet.</div>
             ) : (
               <div className="tableWrap">
@@ -390,7 +471,7 @@ export function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map((order) => (
+                    {visibleOrders.map((order) => (
                       <tr key={order.id}>
                         <td>
                           <strong>{order.id}</strong>
@@ -421,6 +502,10 @@ export function AdminPage() {
                         </td>
                         <td>
                           <div className="actionRow">
+                            <button type="button" onClick={() => openOrder(order)} disabled={adminUser.role === "viewer"}>
+                              <Lock size={15} />
+                              Open Order
+                            </button>
                             <a className="miniLink" href={`/chat/${order.id}?admin=1&staffId=${encodeURIComponent(adminUser.staffId)}&staffName=${encodeURIComponent(adminUser.label)}`}>Chat</a>
                             <button type="button" onClick={() => takeChat(order)}>
                               <UserCheck size={15} />
@@ -572,6 +657,7 @@ function SectionBack({ activeSection, onBack }: { activeSection: AdminSection; o
     users: "Customer Users",
     settings: "Rates & Payment",
     wallets: "Wallet Desk",
+    reviews: "Reviews",
     logs: "Activity Log"
   };
 
@@ -667,6 +753,91 @@ function pushFieldChange(changes: string[], label: string, before: string, after
 function formatLogValue(value: string | number): string {
   const text = String(value || "blank").trim() || "blank";
   return text.length > 90 ? `${text.slice(0, 87)}...` : text;
+}
+
+function AdminReviewsSection({
+  canManage,
+  onDelete,
+  onSave,
+  reviews
+}: {
+  canManage: boolean;
+  onDelete: (review: CustomerReview) => void;
+  onSave: (review: Omit<CustomerReview, "id" | "createdAt">) => void;
+  reviews: CustomerReview[];
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!name.trim() || !email.trim() || !comment.trim()) return;
+    onSave({ name: name.trim(), email: email.trim(), rating, comment: comment.trim() });
+    setName("");
+    setEmail("");
+    setRating(5);
+    setComment("");
+  }
+
+  return (
+    <section className="reviewsAdminPanel">
+      <div className="settingsHead">
+        <div>
+          <h2>Reviews Management</h2>
+          <p>Add dummy trust reviews, manage public feedback, and remove outdated comments.</p>
+        </div>
+        <Star size={28} />
+      </div>
+
+      <div className="reviewsAdminGrid">
+        <form className="reviewForm" onSubmit={submit}>
+          <h2>Add Review</h2>
+          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Full name" disabled={!canManage} />
+          <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Gmail address" disabled={!canManage} />
+          <div className="ratingPicker">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button className={value <= rating ? "active" : ""} type="button" key={value} onClick={() => setRating(value)} disabled={!canManage} aria-label={`${value} star`}>
+                <Star size={22} />
+              </button>
+            ))}
+          </div>
+          <textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Safe, trusted, fast transaction comment" disabled={!canManage} />
+          <button className="primaryButton" type="submit" disabled={!canManage}>
+            <Plus size={16} />
+            Save Review
+          </button>
+          {!canManage && <small>Only Owner and Manager can add or delete reviews.</small>}
+        </form>
+
+        <div className="reviewList">
+          {reviews.map((review) => (
+            <article className="reviewCard" key={review.id}>
+              <div className="reviewAvatar">{review.name.slice(0, 1).toUpperCase()}</div>
+              <div>
+                <div className="reviewCardHead">
+                  <strong>{review.name}</strong>
+                  <span className="stars">
+                    {[1, 2, 3, 4, 5].map((item) => <Star className={item <= review.rating ? "filled" : ""} size={16} key={item} />)}
+                  </span>
+                </div>
+                <span>{maskEmail(review.email)}</span>
+                <p>{review.comment}</p>
+                <div className="actionRow">
+                  <span className="readOnlyNote">{review.id.startsWith("seed-") ? "Seed review" : "Custom review"}</span>
+                  <button type="button" disabled={!canManage} onClick={() => onDelete(review)}>
+                    <Trash2 size={15} />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function CustomerUsersSection({

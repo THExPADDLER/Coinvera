@@ -48,30 +48,31 @@ export function CustomerPage() {
         <Brand />
         {session && balance && (
           <a className="walletNavBox" href="/wallet" aria-label="Coinvera wallet balance">
-            <Wallet size={16} />
-            <span>Wallet</span>
-            <strong>{balance.available.toLocaleString("en-IN", { maximumFractionDigits: 4 })} USDT</strong>
+            <span className="walletNavIcon"><Wallet size={17} /></span>
+            <span className="walletNavLabel">Wallet</span>
+            <strong>{balance.available.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</strong>
           </a>
         )}
         <div className="navActions">
-          <button className="iconButton menuButton" type="button" onClick={() => setMenuOpen((value) => !value)} aria-label="Open menu">
-            {menuOpen ? <X size={22} /> : <Menu size={23} />}
-          </button>
-          {menuOpen && (
+          {session ? (
+            <button className="iconButton menuButton" type="button" onClick={() => setMenuOpen((value) => !value)} aria-label="Open menu">
+              {menuOpen ? <X size={22} /> : <Menu size={23} />}
+            </button>
+          ) : (
+            <button className="softButton" type="button" onClick={() => setShowAuth(true)}>
+              <UserRound size={17} />
+              Login / Signup
+            </button>
+          )}
+          {session && menuOpen && (
             <div className="navMenuPanel">
-              {session ? (
-                <>
-                  <a href="/profile"><UserRound size={17} /> Profile</a>
-                  <a href="/wallet"><Wallet size={17} /> Wallet</a>
-                  <a href="/orders"><CircleDollarSign size={17} /> My Orders</a>
-                  <a href="/messages"><MessageCircle size={17} /> Messages</a>
-                </>
-              ) : (
-                <button type="button" onClick={() => { setShowAuth(true); setMenuOpen(false); }}><UserRound size={17} /> Login / Signup</button>
-              )}
+              <a href="/profile"><UserRound size={17} /> Profile</a>
+              <a href="/wallet"><Wallet size={17} /> Wallet</a>
+              <a href="/orders"><CircleDollarSign size={17} /> My Orders</a>
+              <a href="/messages"><MessageCircle size={17} /> Messages</a>
               <a href="/about"><ShieldCheck size={17} /> About Coinvera</a>
               <a href="/reviews"><Star size={17} /> Reviews & Feedback</a>
-              {session && <button type="button" onClick={logout}><LogOut size={17} /> Logout</button>}
+              <button type="button" onClick={logout}><LogOut size={17} /> Logout</button>
             </div>
           )}
         </div>
