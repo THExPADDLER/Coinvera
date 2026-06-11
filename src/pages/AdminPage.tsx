@@ -1,4 +1,4 @@
-import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, Plus, RefreshCw, ShieldCheck, SlidersHorizontal, Star, Trash2, UserCheck, UsersRound, Wallet } from "lucide-react";
+import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, Plus, RefreshCw, ShieldCheck, SlidersHorizontal, Star, Trash2, UsersRound, Wallet } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
@@ -507,10 +507,6 @@ export function AdminPage() {
                               Open Order
                             </button>
                             <a className="miniLink" href={`/chat/${order.id}?admin=1&staffId=${encodeURIComponent(adminUser.staffId)}&staffName=${encodeURIComponent(adminUser.label)}`}>Chat</a>
-                            <button type="button" onClick={() => takeChat(order)}>
-                              <UserCheck size={15} />
-                              {order.assignedStaffId ? "Take / Reassign" : "Take Chat"}
-                            </button>
                             <button
                               type="button"
                               onClick={() =>
@@ -523,17 +519,6 @@ export function AdminPage() {
                               <Eye size={15} />
                               View Customer Proof
                             </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                order.adminProof && isImageData(order.adminProof)
-                                  ? setPreviewProof({ src: order.adminProof, alt: `${order.id} Coinvera proof` })
-                                  : setToast(order.adminProof ? "This older proof has only a file name. New uploads will open as images." : "No Coinvera proof uploaded yet")
-                              }
-                            >
-                              <Eye size={15} />
-                              View Coinvera Proof
-                            </button>
                             {permissions.canUploadProof && (
                               <label className="miniUpload">
                                 Upload proof
@@ -542,15 +527,16 @@ export function AdminPage() {
                             )}
                             {permissions.canComplete && (
                               <button type="button" onClick={() => completeOrder(order)}>
-                                Complete with chat proof
+                                Complete
                               </button>
                             )}
                             {permissions.canChangeStatus ? (
-                              statusFlow[order.mode].map((status) => (
-                                <button key={status} type="button" onClick={() => changeStatus(order.id, status)}>
-                                  {status}
-                                </button>
-                              ))
+                              <select className="statusSelect" value={order.status} onChange={(event) => changeStatus(order.id, event.target.value as OrderStatus)}>
+                                <option value={order.status}>Status: {order.status}</option>
+                                {statusFlow[order.mode].filter((status) => status !== order.status).map((status) => (
+                                  <option value={status} key={status}>{status}</option>
+                                ))}
+                              </select>
                             ) : (
                               <span className="readOnlyNote">Read only</span>
                             )}

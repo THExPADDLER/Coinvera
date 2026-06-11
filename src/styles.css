@@ -2339,6 +2339,13 @@ button.qrBox:disabled {
   fill: #f0a400;
 }
 
+.ratingPicker button.active svg,
+.stars .filled,
+.stars .filled * {
+  fill: #f0a400;
+  stroke: #f0a400;
+}
+
 .reviewList {
   display: grid;
   gap: 12px;
@@ -3297,6 +3304,19 @@ tbody tr:hover {
   color: #22332e;
   padding: 0 10px;
   font-weight: 780;
+}
+
+.statusSelect {
+  min-height: 34px;
+  max-width: 190px;
+  border: 1px solid rgba(17, 146, 118, 0.28);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--tealDark);
+  background: #f3fffb;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .miniLink,
