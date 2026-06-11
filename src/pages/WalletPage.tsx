@@ -1,5 +1,5 @@
-import { ArrowLeft, Copy, QrCode, Wallet } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ArrowDownToLine, ArrowLeft, Copy, QrCode, Send, Wallet } from "lucide-react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
@@ -127,43 +127,50 @@ export function WalletPage() {
             <p>Deposits stay pending until Coinvera verifies the on-chain transaction. Verified balance can be sold or withdrawn.</p>
           </div>
           <div className="walletBalanceGrid">
-            <Metric label="Available" value={usdt(balance.available)} />
-            <Metric label="Pending" value={usdt(Math.max(0, balance.pending))} />
-            <Metric label="Locked" value={usdt(Math.max(0, balance.locked))} />
+            <Metric icon={<Wallet size={18} />} label="Available" value={usdt(balance.available)} />
+            <Metric icon={<ArrowDownToLine size={18} />} label="Pending" value={usdt(Math.max(0, balance.pending))} />
+            <Metric icon={<Send size={18} />} label="Locked" value={usdt(Math.max(0, balance.locked))} />
           </div>
         </div>
 
         <section className="walletGrid">
-          <form className="tradePanel tradeForm" onSubmit={submitDeposit}>
-            <h2>Deposit USDT</h2>
-            <label>
-              Network
-              <select value={network} onChange={(event) => setNetwork(event.target.value)}>
-                {settings.blockchains.map((chain) => (
-                  <option value={chain.name} key={chain.id}>{chain.name}</option>
-                ))}
-              </select>
-            </label>
-            <div className="walletDisplay compactWalletDisplay">
-              <span>Send USDT to Coinvera wallet</span>
-              <button className="sellerQrBox clickableQr" type="button" disabled={!selectedChain?.qr} onClick={() => selectedChain?.qr && setPreviewQr(selectedChain.qr)}>
-                {selectedChain?.qr ? <img src={selectedChain.qr} alt={`${selectedChain.name} deposit QR`} /> : <QrCode size={84} />}
-              </button>
-              <strong>{selectedChain?.wallet || "Wallet not configured"}</strong>
-              <button type="button" onClick={() => navigator.clipboard?.writeText(selectedChain?.wallet || "")}>
-                <Copy size={15} />
-                Copy address
-              </button>
+          <form className="walletActionCard" onSubmit={submitDeposit}>
+            <div className="walletCardHead">
+              <span><ArrowDownToLine size={18} /> Deposit</span>
+              <strong>USDT</strong>
             </div>
-            <label>
-              Amount sent
-              <input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="100" required />
-            </label>
-            <label>
-              TX hash
-              <input value={txHash} onChange={(event) => setTxHash(event.target.value)} placeholder="Paste blockchain transaction hash" required />
-            </label>
-            <button className="primaryButton" type="submit">Submit Deposit</button>
+            <div className="walletDepositLayout">
+              <div className="walletDisplay compactWalletDisplay">
+                <span>Send USDT to Coinvera wallet</span>
+                <button className="sellerQrBox clickableQr" type="button" disabled={!selectedChain?.qr} onClick={() => selectedChain?.qr && setPreviewQr(selectedChain.qr)}>
+                  {selectedChain?.qr ? <img src={selectedChain.qr} alt={`${selectedChain.name} deposit QR`} /> : <QrCode size={84} />}
+                </button>
+                <strong>{selectedChain?.wallet || "Wallet not configured"}</strong>
+                <button type="button" onClick={() => navigator.clipboard?.writeText(selectedChain?.wallet || "")}>
+                  <Copy size={15} />
+                  Copy address
+                </button>
+              </div>
+              <div className="walletFormStack">
+                <label>
+                  Network
+                  <select value={network} onChange={(event) => setNetwork(event.target.value)}>
+                    {settings.blockchains.map((chain) => (
+                      <option value={chain.name} key={chain.id}>{chain.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Amount sent
+                  <input className="shortAmountInput" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="100" required />
+                </label>
+                <label>
+                  TX hash
+                  <input value={txHash} onChange={(event) => setTxHash(event.target.value)} placeholder="Paste blockchain transaction hash" required />
+                </label>
+                <button className="primaryButton" type="submit">Submit Deposit</button>
+              </div>
+            </div>
           </form>
 
           <section className="walletHistoryPanel">
@@ -187,32 +194,34 @@ export function WalletPage() {
             )}
           </section>
 
-          <form className="tradePanel tradeForm" onSubmit={submitWithdrawal}>
-            <h2>Withdraw USDT</h2>
-            <label>
-              Amount
-              <input type="number" min="0.01" step="0.01" value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} placeholder="50" required />
-            </label>
-            <label>
-              Network
-              <select value={withdrawNetwork} onChange={(event) => setWithdrawNetwork(event.target.value)}>
-                {settings.blockchains.map((chain) => (
-                  <option value={chain.name} key={chain.id}>{chain.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="wide">
-              Receiving wallet address
-              <input value={withdrawAddress} onChange={(event) => setWithdrawAddress(event.target.value)} placeholder="Enter your USDT wallet address" required />
-            </label>
-            <div className="walletDeliveryNote wide">
-              <Wallet size={18} />
-              <div>
-                <strong>{usdt(balance.available)} available</strong>
-                <span>Requested amount is locked until admin sends USDT or cancels the request.</span>
-              </div>
+          <form className="walletActionCard" onSubmit={submitWithdrawal}>
+            <div className="walletCardHead">
+              <span><Send size={18} /> Withdraw</span>
+              <strong>USDT</strong>
             </div>
-            <button className="primaryButton wide" type="submit" disabled={!Number(withdrawAmount) || !withdrawAddress.trim()}>Request Withdrawal</button>
+            <div className="walletFormStack">
+              <label>
+                Amount
+                <input className="shortAmountInput" type="number" min="0.01" step="0.01" value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} placeholder="50" required />
+              </label>
+              <label>
+                Network
+                <select value={withdrawNetwork} onChange={(event) => setWithdrawNetwork(event.target.value)}>
+                  {settings.blockchains.map((chain) => (
+                    <option value={chain.name} key={chain.id}>{chain.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Receiving wallet address
+                <input value={withdrawAddress} onChange={(event) => setWithdrawAddress(event.target.value)} placeholder="Enter your USDT wallet address" required />
+              </label>
+            </div>
+            <div className="walletDeliveryNote walletAvailableOnly">
+              <Wallet size={18} />
+              <strong>{usdt(balance.available)} available</strong>
+            </div>
+            <button className="primaryButton" type="submit" disabled={!Number(withdrawAmount) || !withdrawAddress.trim()}>Request Withdrawal</button>
           </form>
 
           <section className="walletHistoryPanel">
@@ -276,10 +285,10 @@ function WalletNav() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="metricCard">
-      <span>{label}</span>
+      <span>{icon}{label}</span>
       <strong>{value}</strong>
     </div>
   );

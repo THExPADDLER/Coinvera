@@ -1374,6 +1374,17 @@ button.qrBox:disabled {
   line-height: 1.35;
 }
 
+.walletAvailableOnly {
+  min-height: 54px;
+  padding: 12px 14px;
+  border-color: rgba(17, 146, 118, 0.34);
+  background: #f5fffb;
+}
+
+.walletAvailableOnly strong {
+  font-size: 16px;
+}
+
 .payDetails,
 .bankDetails {
   padding: 16px;
@@ -1465,33 +1476,34 @@ button.qrBox:disabled {
 }
 
 .walletShell {
-  width: min(1180px, calc(100% - 36px));
+  width: min(1220px, calc(100% - 36px));
   margin: 0 auto;
   padding: 24px 0 56px;
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .walletHero {
   display: grid;
-  grid-template-columns: 1.1fr minmax(320px, 0.9fr);
+  grid-template-columns: 1.1fr minmax(340px, 0.9fr);
   gap: 18px;
   align-items: stretch;
 }
 
 .walletHero > div:first-child,
 .walletHistoryPanel {
-  padding: 22px;
+  padding: 24px;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 14px 36px rgba(15, 42, 37, 0.07);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 20px 58px rgba(15, 42, 37, 0.09);
+  backdrop-filter: blur(18px);
 }
 
 .walletHero h1 {
   margin: 0;
-  font-size: clamp(34px, 5vw, 58px);
-  line-height: 0.95;
+  font-size: clamp(32px, 4.6vw, 56px);
+  line-height: 0.98;
 }
 
 .walletHero p:not(.eyebrow) {
@@ -1507,8 +1519,91 @@ button.qrBox:disabled {
 
 .walletGrid {
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 1.1fr);
-  gap: 16px;
+  grid-template-columns: minmax(390px, 0.86fr) minmax(430px, 1.14fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.walletBalanceGrid .metricCard {
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 253, 250, 0.92));
+  box-shadow: 0 20px 52px rgba(15, 42, 37, 0.09);
+}
+
+.walletActionCard {
+  padding: 18px;
+  border: 1px solid rgba(17, 146, 118, 0.16);
+  border-radius: 16px;
+  display: grid;
+  gap: 14px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(243, 252, 248, 0.92));
+  box-shadow: 0 22px 62px rgba(15, 42, 37, 0.1);
+}
+
+.walletCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.walletCardHead span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tealDark);
+  font-size: 13px;
+  text-transform: uppercase;
+  font-weight: 950;
+}
+
+.walletCardHead strong {
+  color: var(--ink);
+  font-size: 22px;
+}
+
+.walletDepositLayout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.walletFormStack {
+  display: grid;
+  gap: 11px;
+}
+
+.walletFormStack label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.walletFormStack input,
+.walletFormStack select {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 0 12px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 760;
+}
+
+.walletFormStack .shortAmountInput {
+  max-width: 160px;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.walletActionCard .primaryButton {
+  width: 100%;
+  min-height: 42px;
 }
 
 .walletHistoryPanel {
@@ -1570,6 +1665,19 @@ button.qrBox:disabled {
 
 .compactWalletDisplay {
   margin: 0;
+  padding: 12px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.compactWalletDisplay .sellerQrBox {
+  width: 146px;
+  height: 146px;
+}
+
+.compactWalletDisplay strong {
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .orderCard {
@@ -1936,28 +2044,49 @@ button.qrBox:disabled {
   min-height: 100vh;
   padding-bottom: 48px;
   background:
-    radial-gradient(circle at 18% 0%, rgba(17, 146, 118, 0.16), transparent 31%),
-    radial-gradient(circle at 82% 4%, rgba(47, 100, 167, 0.14), transparent 28%),
+    linear-gradient(135deg, rgba(6, 22, 19, 0.05) 0 25%, transparent 25% 50%, rgba(17, 146, 118, 0.04) 50% 75%, transparent 75%),
+    radial-gradient(circle at 18% 0%, rgba(17, 146, 118, 0.22), transparent 31%),
+    radial-gradient(circle at 82% 4%, rgba(47, 100, 167, 0.18), transparent 28%),
     var(--paper);
+  background-size: 34px 34px, auto, auto, auto;
 }
 
 .adminHero {
   width: min(1210px, calc(100% - 36px));
   margin: 10px auto 22px;
-  padding: 30px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 18px 50px rgba(16, 46, 40, 0.08);
+  padding: 32px;
+  border: 1px solid rgba(17, 146, 118, 0.18);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(244, 252, 248, 0.82)),
+    radial-gradient(circle at 88% 12%, rgba(0, 211, 149, 0.22), transparent 34%);
+  box-shadow: 0 26px 70px rgba(16, 46, 40, 0.12);
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 24px;
   align-items: end;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+}
+
+.adminHero::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  top: -110px;
+  width: 280px;
+  height: 280px;
+  border: 1px solid rgba(0, 211, 149, 0.22);
+  border-radius: 50%;
+  box-shadow: inset 0 0 70px rgba(0, 211, 149, 0.08);
+  pointer-events: none;
 }
 
 .adminHero h1 {
   color: var(--ink);
   font-size: clamp(36px, 5vw, 64px);
+  letter-spacing: 0;
 }
 
 .adminHero p {
@@ -2092,10 +2221,26 @@ button.qrBox:disabled {
 .metricCard {
   min-height: 104px;
   padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 12px 30px rgba(15, 42, 37, 0.06);
+  border: 1px solid rgba(17, 146, 118, 0.14);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 253, 251, 0.9));
+  box-shadow: 0 18px 46px rgba(15, 42, 37, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.metricCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--teal), rgba(47, 100, 167, 0.86));
+}
+
+.metricCard span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .metricCard strong {
@@ -2108,29 +2253,43 @@ button.qrBox:disabled {
   width: min(1210px, calc(100% - 36px));
   margin: 0 auto 16px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .adminMenuCard {
-  min-height: 184px;
+  min-height: 190px;
   padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 16px 42px rgba(15, 42, 37, 0.08);
+  border: 1px solid rgba(17, 146, 118, 0.14);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 253, 250, 0.94));
+  box-shadow: 0 20px 54px rgba(15, 42, 37, 0.09);
   color: var(--ink);
   text-align: left;
   display: grid;
   gap: 12px;
   align-content: start;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.adminMenuCard::after {
+  content: "";
+  position: absolute;
+  inset: auto 16px 14px auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(0, 211, 149, 0.09);
 }
 
 .adminMenuCard:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   border-color: rgba(17, 146, 118, 0.45);
-  box-shadow: 0 20px 52px rgba(15, 42, 37, 0.12);
+  background: #fff;
+  box-shadow: 0 26px 70px rgba(15, 42, 37, 0.14);
 }
 
 .adminMenuIcon {
@@ -2185,21 +2344,23 @@ button.qrBox:disabled {
 }
 
 .ordersSurface {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 16px 46px rgba(15, 42, 37, 0.08);
+  border: 1px solid rgba(17, 146, 118, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 24px 68px rgba(15, 42, 37, 0.1);
   overflow: hidden;
+  backdrop-filter: blur(14px);
 }
 
 .usersPanel {
   width: min(1210px, calc(100% - 36px));
   margin: 0 auto 16px;
   padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 16px 46px rgba(15, 42, 37, 0.08);
+  border: 1px solid rgba(17, 146, 118, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 24px 68px rgba(15, 42, 37, 0.1);
+  backdrop-filter: blur(14px);
 }
 
 .userCards {
@@ -2268,10 +2429,11 @@ button.qrBox:disabled {
   width: min(1210px, calc(100% - 36px));
   margin: 16px auto 0;
   padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 16px 46px rgba(15, 42, 37, 0.08);
+  border: 1px solid rgba(17, 146, 118, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 24px 68px rgba(15, 42, 37, 0.1);
+  backdrop-filter: blur(14px);
 }
 
 .activityLogList {
@@ -2286,9 +2448,9 @@ button.qrBox:disabled {
   gap: 12px;
   align-items: center;
   padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #f8fbfa;
+  border: 1px solid rgba(17, 146, 118, 0.12);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fbfa, #fff);
 }
 
 .activityLogItem strong,
@@ -2308,6 +2470,9 @@ button.qrBox:disabled {
 
 .tableWrap {
   overflow-x: auto;
+  background:
+    linear-gradient(90deg, rgba(17, 146, 118, 0.08), transparent 18px) left / 32px 100% no-repeat,
+    #fff;
 }
 
 table {
@@ -2319,18 +2484,21 @@ table {
 th,
 td {
   text-align: left;
-  padding: 14px 15px;
+  padding: 16px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   font-size: 14px;
 }
 
 th {
-  color: #53625e;
-  background: #edf5f1;
+  color: #47625b;
+  background: linear-gradient(180deg, #edf7f3, #e7f2ef);
   font-size: 12px;
   text-transform: uppercase;
   font-weight: 850;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 td span,
@@ -2341,6 +2509,14 @@ td strong {
 
 tbody tr:last-child td {
   border-bottom: 0;
+}
+
+tbody tr {
+  transition: background 0.16s ease;
+}
+
+tbody tr:hover {
+  background: #f8fffc;
 }
 
 .pill {
@@ -2689,6 +2865,10 @@ tbody tr:last-child td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .walletDepositLayout {
+    grid-template-columns: 1fr;
+  }
+
   .credentialGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2786,6 +2966,7 @@ tbody tr:last-child td {
   .walletHero,
   .walletBalanceGrid,
   .walletGrid,
+  .walletDepositLayout,
   .chatComposer,
   .credentialGrid,
   .userStats,
