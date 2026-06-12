@@ -5,7 +5,7 @@ import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
 import { loadDeskSettings, usdt } from "../lib/desk";
-import { createWalletDeposit, createWalletWithdrawal, getCustomerWalletBalance, loadWalletDeposits, loadWalletLedger, loadWalletWithdrawals } from "../lib/wallet";
+import { createWalletDeposit, createWalletWithdrawal, getCustomerWalletBalance, getWalletDepositHoldUntil, loadWalletDeposits, loadWalletLedger, loadWalletWithdrawals } from "../lib/wallet";
 import type { Network, WalletDeposit, WalletLedgerEntry, WalletWithdrawal } from "../lib/types";
 
 export function WalletPage() {
@@ -187,7 +187,7 @@ export function WalletPage() {
                     </div>
                     <p>{usdt(deposit.amount)} on {deposit.network}</p>
                     <small>TX: {deposit.txHash}</small>
-                    <small>Hold until {new Date(deposit.holdUntil).toLocaleString("en-IN")}</small>
+                    <small>Hold until {new Date(getWalletDepositHoldUntil(deposit)).toLocaleString("en-IN")}</small>
                   </article>
                 ))}
               </div>

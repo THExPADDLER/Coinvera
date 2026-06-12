@@ -5,12 +5,12 @@ import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
 import { loadCustomerUsers } from "../lib/auth";
-import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
+import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
 import type { AdminActivityLog, AdminRole, AdminStaffAccount, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus, WalletDeposit, WalletWithdrawal } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { imageFileToCompressedDataUrl, isImageData } from "../lib/files";
-import { cancelWalletSell, cancelWalletWithdrawal, completeWalletSell, completeWalletWithdrawal, creditWalletFromBuy, loadWalletDeposits, loadWalletWithdrawals, rejectWalletDeposit, verifyWalletDeposit } from "../lib/wallet";
+import { cancelWalletSell, cancelWalletWithdrawal, completeWalletSell, completeWalletWithdrawal, creditWalletFromBuy, getWalletDepositHoldUntil, loadWalletDeposits, loadWalletLedger, loadWalletWithdrawals, rejectWalletDeposit, verifyWalletDeposit } from "../lib/wallet";
 import { syncFirebaseToLocal } from "../lib/remoteStore";
 import { deleteReview, loadReviews, saveReview, type CustomerReview } from "../lib/reviews";
 import { maskAddress, maskEmail, maskMobile } from "../lib/mask";
@@ -55,6 +55,8 @@ export function AdminPage() {
   const [cropTarget, setCropTarget] = useState<{ draft: DeskSettings; file: File; type: "upi" | "chain"; index?: number } | null>(null);
   const [previewProof, setPreviewProof] = useState<{ src: string; alt: string } | null>(null);
   const [activeSection, setActiveSection] = useState<AdminSection>("home");
+  const [reportFrom, setReportFrom] = useState(() => inputDate(daysAgo(30)));
+  const [reportTo, setReportTo] = useState(() => inputDate(new Date()));
   const permissions = adminUser ? rolePermissions[adminUser.role] : rolePermissions.operator;
 
   const activeOrders = useMemo(() => orders.filter((order) => !["Completed", "Cancelled"].includes(order.status)), [orders]);
@@ -255,21 +257,37 @@ export function AdminPage() {
     }
   }
 
-  function exportCsv() {
+  async function exportPdf() {
     if (!permissions.canExport) {
-      setToast("This role cannot export CSV");
+      setToast("This role cannot export reports");
       return;
     }
-    const blob = new Blob([toCsv(orders)], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "usdt-inr-orders.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-    if (adminUser) {
-      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Exported order CSV" }));
+    if (!reportFrom || !reportTo || new Date(reportFrom) > new Date(reportTo)) {
+      setToast("Select a valid report date range");
+      return;
     }
+    const period = periodBounds(reportFrom, reportTo);
+    const filteredOrders = orders.filter((order) => inPeriod(order.createdAt, period.start, period.end));
+    const filteredDeposits = walletDeposits.filter((deposit) => inPeriod(deposit.createdAt, period.start, period.end) || inPeriod(deposit.verifiedAt, period.start, period.end) || inPeriod(deposit.rejectedAt, period.start, period.end));
+    const filteredWithdrawals = walletWithdrawals.filter((withdrawal) => inPeriod(withdrawal.createdAt, period.start, period.end) || inPeriod(withdrawal.completedAt, period.start, period.end) || inPeriod(withdrawal.cancelledAt, period.start, period.end));
+    const filteredLedger = loadWalletLedger().filter((entry) => inPeriod(entry.at, period.start, period.end));
+    const filteredLogs = logs.filter((log) => inPeriod(log.at, period.start, period.end));
+    const { downloadAdminReportPdf } = await import("../lib/reportPdf");
+    downloadAdminReportPdf({
+      activityLogs: filteredLogs,
+      customers: users,
+      deposits: filteredDeposits,
+      from: reportFrom,
+      generatedBy: `${adminUser?.label || "Admin"} (${adminUser?.staffId || "unknown"})`,
+      ledger: filteredLedger,
+      orders: filteredOrders,
+      to: reportTo,
+      withdrawals: filteredWithdrawals
+    });
+    if (adminUser) {
+      setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Downloaded PDF report", detail: `${reportFrom} to ${reportTo}` }));
+    }
+    setToast("PDF report downloaded");
   }
 
   function copyMobile(user: CustomerUser) {
@@ -389,7 +407,7 @@ export function AdminPage() {
           className="adminAuth"
           onSubmit={(event) => {
             event.preventDefault();
-            unlock();
+            if (!adminUser) unlock();
           }}
         >
           {!adminUser ? (
@@ -410,10 +428,20 @@ export function AdminPage() {
                 Refresh
               </button>
               {permissions.canExport && (
-                <button className="softButton dark" type="button" onClick={exportCsv}>
-                  <Download size={16} />
-                  CSV
-                </button>
+                <div className="reportExportControls">
+                  <label>
+                    From
+                    <input type="date" value={reportFrom} onChange={(event) => setReportFrom(event.target.value)} />
+                  </label>
+                  <label>
+                    To
+                    <input type="date" value={reportTo} onChange={(event) => setReportTo(event.target.value)} />
+                  </label>
+                  <button className="softButton dark" type="button" onClick={exportPdf}>
+                    <Download size={16} />
+                    PDF
+                  </button>
+                </div>
               )}
               <button className="softButton dark" type="button" onClick={() => setAdminUser(null)}>
                 <LogOut size={16} />
@@ -1070,7 +1098,7 @@ function WalletDepositsSection({
       <div className="settingsHead">
         <div>
           <h2>Wallet Deposits</h2>
-          <p>Approve only after the 30 minute verification hold is complete.</p>
+          <p>Approve after the 15 minute verification hold or once Coinvera confirms the chain transfer.</p>
         </div>
         <Wallet size={28} />
       </div>
@@ -1090,7 +1118,7 @@ function WalletDepositsSection({
             </thead>
             <tbody>
               {deposits.map((deposit) => {
-                const holdLeft = Math.max(0, new Date(deposit.holdUntil).getTime() - Date.now());
+                const holdLeft = Math.max(0, new Date(getWalletDepositHoldUntil(deposit)).getTime() - Date.now());
                 const holdLabel = holdLeft > 0 ? `${Math.ceil(holdLeft / 60000)} min hold left` : "Hold complete";
                 return (
                   <tr key={deposit.id}>
@@ -1422,4 +1450,28 @@ function BankOptionManager({
       ))}
     </div>
   );
+}
+
+function daysAgo(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+}
+
+function inputDate(date: Date) {
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 10);
+}
+
+function periodBounds(from: string, to: string) {
+  return {
+    start: new Date(`${from}T00:00:00`).getTime(),
+    end: new Date(`${to}T23:59:59.999`).getTime()
+  };
+}
+
+function inPeriod(value: string | undefined, start: number, end: number) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time >= start && time <= end;
 }

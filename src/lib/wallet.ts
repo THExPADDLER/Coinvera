@@ -4,7 +4,7 @@ import type { CustomerWalletBalance, Network, WalletDeposit, WalletLedgerEntry, 
 export const walletDepositsStorageKey = "coinvera-wallet-deposits";
 export const walletLedgerStorageKey = "coinvera-wallet-ledger";
 export const walletWithdrawalsStorageKey = "coinvera-wallet-withdrawals";
-export const walletHoldMs = 30 * 60 * 1000;
+export const walletHoldMs = 15 * 60 * 1000;
 
 export function loadWalletDeposits(): WalletDeposit[] {
   try {
@@ -93,6 +93,13 @@ export function createWalletDeposit(input: {
     note: `Deposit submitted on ${input.network}. TX: ${input.txHash.trim()}`
   });
   return deposit;
+}
+
+export function getWalletDepositHoldUntil(deposit: WalletDeposit): string {
+  const createdHoldUntil = new Date(deposit.createdAt).getTime() + walletHoldMs;
+  const storedHoldUntil = new Date(deposit.holdUntil).getTime();
+  const effectiveHoldUntil = Number.isFinite(storedHoldUntil) ? Math.min(storedHoldUntil, createdHoldUntil) : createdHoldUntil;
+  return new Date(effectiveHoldUntil).toISOString();
 }
 
 export function verifyWalletDeposit(depositId: string, staff: { staffId: string; staffName: string }, note = ""): WalletDeposit[] {
