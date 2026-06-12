@@ -24,7 +24,12 @@ export function ChatPage() {
   const staffName = adminSession?.label || params.get("staffName") || order?.assignedStaffName || "Coinvera Staff";
   const staffRole = (adminSession?.role || params.get("role") || order?.assignedStaffRole || "operator") as AdminRole;
   const chatClosed = Boolean(order && ["Completed", "Cancelled"].includes(order.status));
-  const customerBlocked = Boolean(order && !isAdminView && (!session || (order.customerMobile || order.phone) !== session.mobile));
+  const customerOwnsOrder = Boolean(
+    order &&
+      session &&
+      (order.customerAuthUid ? order.customerAuthUid === session.authUid : (order.customerMobile || order.phone) === session.mobile)
+  );
+  const customerBlocked = Boolean(order && !isAdminView && !customerOwnsOrder);
   const adminBlocked =
     Boolean(order && isAdminView && (!adminSession || (staffRole === "operator" && (chatClosed || order.assignedStaffId !== staffId))));
   const visibleMessages = useMemo(

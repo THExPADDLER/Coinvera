@@ -1,4 +1,5 @@
 export interface KycSession {
+  authUid?: string;
   fullName: string;
   mobile: string;
   mobileVerified: boolean;

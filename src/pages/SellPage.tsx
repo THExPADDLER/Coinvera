@@ -117,6 +117,7 @@ export function SellPage() {
       name: customer.fullName,
       phone: customer.mobile,
       customerMobile: customer.mobile,
+      customerAuthUid: customer.authUid,
       amount: sellAmount,
       rate: settings.rates.sell,
       network: "Coinvera verified wallet",
@@ -128,7 +129,7 @@ export function SellPage() {
       paymentScreenshot: "",
       status: "Processing"
     });
-    if (!lockWalletForSell(customer.mobile, sellAmount, order.id)) {
+    if (!lockWalletForSell(customer.mobile, sellAmount, order.id, customer.authUid)) {
       setToast("Wallet balance changed. Please refresh and try again.");
       return;
     }
@@ -179,6 +180,7 @@ export function SellPage() {
       name: customer.fullName,
       phone: customer.mobile,
       customerMobile: customer.mobile,
+      customerAuthUid: customer.authUid,
       amount: Number(amount),
       rate: settings.rates.sell,
       network: selectedChain?.name || network,

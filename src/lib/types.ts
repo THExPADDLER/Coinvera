@@ -58,6 +58,7 @@ export interface DeskOrder {
   paymentReference?: string;
   paymentScreenshot?: string;
   customerMobile?: string;
+  customerAuthUid?: string;
   expiresAt?: string;
   adminProof?: string;
   customerConfirmed?: boolean;
@@ -92,6 +93,7 @@ export interface AdminActivityLog {
 
 export interface CustomerUser {
   id: string;
+  authUid?: string;
   fullName: string;
   mobile: string;
   email?: string;
@@ -141,6 +143,7 @@ export type WalletWithdrawalStatus = "Requested" | "Completed" | "Cancelled";
 
 export interface WalletDeposit {
   id: string;
+  customerAuthUid?: string;
   customerMobile: string;
   customerName: string;
   network: Network;
@@ -159,6 +162,7 @@ export interface WalletDeposit {
 
 export interface WalletWithdrawal {
   id: string;
+  customerAuthUid?: string;
   customerMobile: string;
   customerName: string;
   amount: number;
@@ -176,6 +180,7 @@ export interface WalletWithdrawal {
 
 export interface WalletLedgerEntry {
   id: string;
+  customerAuthUid?: string;
   customerMobile: string;
   at: string;
   type:

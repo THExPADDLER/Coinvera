@@ -55,6 +55,7 @@ export function BuyPage() {
       name: session.fullName,
       phone: session.mobile,
       customerMobile: session.mobile,
+      customerAuthUid: session.authUid,
       amount: Number(amount),
       rate: settings.rates.buy,
       network: deliveryMode === "wallet" ? "Coinvera Wallet" : network,

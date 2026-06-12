@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { LogIn, UserPlus, X } from "lucide-react";
-import { saveCustomerSession } from "../lib/auth";
+import { signinCustomer, signupCustomer } from "../lib/auth";
 import type { KycSession } from "../lib/kyc";
 
 interface AuthPanelProps {
@@ -10,27 +10,30 @@ interface AuthPanelProps {
 
 export function AuthPanel({ onClose, onLogin }: AuthPanelProps) {
   const [mode, setMode] = useState<"signup" | "signin">("signup");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
     const form = new FormData(event.currentTarget);
     const fullName = String(form.get("fullName") || "Coinvera Customer").trim();
-    const mobile = String(form.get("mobile") || "0000000000").trim();
+    const mobile = String(form.get("mobile") || "").trim();
     const email = String(form.get("email") || "").trim();
-    const session = saveCustomerSession({
-      fullName,
-      mobile,
-      mobileVerified: true,
-      aadhaarLast4: "",
-      aadhaarVerified: true,
-      pan: "NOT-REQUIRED",
-      panVerified: true,
-      digilockerVerified: true,
-      consentAccepted: true,
-      completedAt: new Date().toISOString()
-    }, email);
-    onLogin(session);
-    onClose();
+    const password = String(form.get("password") || "");
+    try {
+      setBusy(true);
+      const session =
+        mode === "signup"
+          ? await signupCustomer({ fullName, mobile, email, password })
+          : await signinCustomer({ email, password });
+      onLogin(session);
+      onClose();
+    } catch (authError) {
+      setError(authError instanceof Error ? cleanAuthError(authError.message) : "Could not continue. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -42,7 +45,7 @@ export function AuthPanel({ onClose, onLogin }: AuthPanelProps) {
         <div className="simpleAuthHeader">
           <p className="eyebrow dark">Coinvera account</p>
           <h2>{mode === "signup" ? "Create your account" : "Sign in to continue"}</h2>
-          <p>No OTP or document verification is required in this prototype.</p>
+          <p>{mode === "signup" ? "Create your Coinvera login. KYC integrations will be added in the next product phase." : "Use the email and password connected to your Coinvera account."}</p>
         </div>
 
         <div className="modeSwitch authSwitch">
@@ -57,23 +60,41 @@ export function AuthPanel({ onClose, onLogin }: AuthPanelProps) {
         </div>
 
         <form className="tradeForm" onSubmit={submit}>
-          <label>
-            Full name
-            <input name="fullName" required placeholder="Customer name" />
-          </label>
-          <label>
-            Mobile number
-            <input name="mobile" required inputMode="tel" placeholder="Mobile number" />
-          </label>
+          {mode === "signup" && (
+            <>
+              <label>
+                Full name
+                <input name="fullName" required placeholder="Customer name" />
+              </label>
+              <label>
+                Mobile number
+                <input name="mobile" required inputMode="tel" placeholder="Mobile number" />
+              </label>
+            </>
+          )}
           <label className="wide">
             Email
-            <input name="email" type="email" placeholder="Optional email" />
+            <input name="email" type="email" required placeholder="customer@email.com" />
           </label>
-          <button className="primaryButton wide" type="submit">
-            Continue
+          <label className="wide">
+            Password
+            <input name="password" type="password" required minLength={6} placeholder="Minimum 6 characters" />
+          </label>
+          {error && <div className="authError wide">{error}</div>}
+          <button className="primaryButton wide" type="submit" disabled={busy}>
+            {busy ? "Please wait..." : "Continue"}
           </button>
         </form>
       </div>
     </div>
   );
+}
+
+function cleanAuthError(message: string): string {
+  if (message.includes("auth/email-already-in-use")) return "This email is already registered. Please sign in.";
+  if (message.includes("auth/invalid-credential") || message.includes("auth/wrong-password")) return "Incorrect email or password.";
+  if (message.includes("auth/user-not-found")) return "No Coinvera account found for this email.";
+  if (message.includes("auth/weak-password")) return "Password should be at least 6 characters.";
+  if (message.includes("auth/too-many-requests")) return "Too many attempts. Please wait and try again.";
+  return message;
 }

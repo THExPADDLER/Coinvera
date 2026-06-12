@@ -1580,6 +1580,16 @@ button.qrBox:disabled {
   margin-bottom: 16px;
 }
 
+.authError {
+  padding: 12px 14px;
+  border: 1px solid rgba(185, 28, 28, 0.24);
+  border-radius: 10px;
+  color: #8f1d1d;
+  background: #fff1f1;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .authModal .kycPanel {
   border: 0;
   box-shadow: none;

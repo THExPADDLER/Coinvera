@@ -59,6 +59,7 @@ export function WalletPage() {
     }
     const deposit = createWalletDeposit({
       amount: value,
+      customerAuthUid: session.authUid,
       customerMobile: session.mobile,
       customerName: session.fullName,
       network,
@@ -86,6 +87,7 @@ export function WalletPage() {
     }
     const withdrawal = createWalletWithdrawal({
       amount: value,
+      customerAuthUid: session.authUid,
       customerMobile: session.mobile,
       customerName: session.fullName,
       network: withdrawNetwork,

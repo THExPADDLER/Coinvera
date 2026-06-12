@@ -65,6 +65,7 @@ export function saveWalletWithdrawals(withdrawals: WalletWithdrawal[]): WalletWi
 
 export function createWalletDeposit(input: {
   amount: number;
+  customerAuthUid?: string;
   customerMobile: string;
   customerName: string;
   network: Network;
@@ -74,6 +75,7 @@ export function createWalletDeposit(input: {
   const now = new Date();
   const deposit: WalletDeposit = {
     id: `DEP-${Date.now().toString().slice(-7)}`,
+    customerAuthUid: input.customerAuthUid,
     customerMobile: input.customerMobile,
     customerName: input.customerName,
     network: input.network,
@@ -86,6 +88,7 @@ export function createWalletDeposit(input: {
   };
   saveWalletDeposits([deposit, ...loadWalletDeposits()]);
   addWalletLedger({
+    customerAuthUid: input.customerAuthUid,
     customerMobile: input.customerMobile,
     type: "deposit_pending",
     amount: input.amount,
@@ -203,10 +206,11 @@ export function creditWalletFromBuy(customerMobile: string, amount: number, orde
   });
 }
 
-export function lockWalletForSell(customerMobile: string, amount: number, orderId: string): boolean {
+export function lockWalletForSell(customerMobile: string, amount: number, orderId: string, customerAuthUid?: string): boolean {
   const balance = getCustomerWalletBalance(customerMobile);
   if (balance.available + 0.000001 < amount) return false;
   addWalletLedger({
+    customerAuthUid,
     customerMobile,
     type: "sell_locked",
     amount,
@@ -241,6 +245,7 @@ export function cancelWalletSell(customerMobile: string, amount: number, orderId
 export function createWalletWithdrawal(input: {
   address: string;
   amount: number;
+  customerAuthUid?: string;
   customerMobile: string;
   customerName: string;
   network: Network;
@@ -249,6 +254,7 @@ export function createWalletWithdrawal(input: {
   if (balance.available + 0.000001 < input.amount) return null;
   const withdrawal: WalletWithdrawal = {
     id: `WD-${Date.now().toString().slice(-7)}`,
+    customerAuthUid: input.customerAuthUid,
     customerMobile: input.customerMobile,
     customerName: input.customerName,
     amount: input.amount,
@@ -259,6 +265,7 @@ export function createWalletWithdrawal(input: {
   };
   saveWalletWithdrawals([withdrawal, ...loadWalletWithdrawals()]);
   addWalletLedger({
+    customerAuthUid: input.customerAuthUid,
     customerMobile: input.customerMobile,
     type: "withdraw_locked",
     amount: input.amount,
