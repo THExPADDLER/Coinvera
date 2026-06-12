@@ -4,6 +4,26 @@ export const staffAccountsStorageKey = "coinvera-admin-staff-accounts";
 
 export const defaultOwnerAccounts: AdminStaffAccount[] = [
   {
+    id: "owner-demo",
+    staffId: "CV-OWNER-000",
+    role: "owner",
+    fullName: "Demo Owner",
+    username: "owner",
+    password: "1234",
+    email: "",
+    mobile: "",
+    aadhaar: "",
+    pan: "",
+    accountNumber: "",
+    ifsc: "",
+    bankName: "",
+    upiId: "",
+    walletAddress: "",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  {
     id: "owner-primary",
     staffId: "CV-OWNER-001",
     role: "owner",
