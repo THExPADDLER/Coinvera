@@ -24,6 +24,13 @@ export function ChatPage() {
   const chatClosed = Boolean(order && ["Completed", "Cancelled"].includes(order.status));
   const adminBlocked =
     Boolean(order && isAdminView && staffRole === "operator" && (chatClosed || order.assignedStaffId !== staffId));
+  const visibleMessages = useMemo(
+    () => {
+      if (!order) return [];
+      return (order.chat || []).filter((message) => isAdminView || !(order.mode === "sell" && message.sender === "system"));
+    },
+    [isAdminView, order]
+  );
 
   useEffect(() => {
     const sync = () => setOrders(loadOrders());
@@ -124,17 +131,17 @@ export function ChatPage() {
           {chatClosed && (
             <div className={`finalChatState ${order.status === "Completed" ? "success" : "danger"}`}>
               <LockKeyhole size={18} />
-              {order.status === "Completed" ? "Order completed by Coinvera staff. Chat closed successfully." : "Order cancelled. Chat is closed."}
+              {order.status === "Completed" ? "ORDER COMPLETED" : "ORDER CANCELLED"}
             </div>
           )}
         </aside>
 
         <section className="chatPanel">
           <div className="chatMessages">
-            {(order.chat || []).map((message) => (
+            {visibleMessages.map((message) => (
               <article className={`chatBubble ${message.sender}`} key={message.id}>
                 <span>{message.sender === "admin" ? `Coinvera Staff${message.staffId ? ` - ${message.staffId}` : ""}` : message.sender === "system" ? "System" : "Customer"}</span>
-                <p>{message.text}</p>
+                <p>{displayChatText(message.text)}</p>
                 {message.attachment && (
                   isImageData(message.attachment) ? (
                     <button className="chatAttachment" type="button" onClick={() => setPreviewImage({ src: message.attachment || "", alt: "Chat attachment" })}>
@@ -149,13 +156,17 @@ export function ChatPage() {
               </article>
             ))}
           </div>
-          <form className="chatComposer" onSubmit={sendMessage}>
-            <input value={text} onChange={(event) => setText(event.target.value)} disabled={chatClosed || adminBlocked} placeholder={chatClosed || adminBlocked ? "Chat closed" : "Type message..."} />
-            <button className="primaryButton" type="submit" disabled={chatClosed || adminBlocked}>
-              <Send size={17} />
-              Send
-            </button>
-          </form>
+          {chatClosed || adminBlocked ? (
+            <div className="chatEndedBox">Chat ended</div>
+          ) : (
+            <form className="chatComposer" onSubmit={sendMessage}>
+              <input value={text} onChange={(event) => setText(event.target.value)} placeholder="Type message..." />
+              <button className="primaryButton" type="submit">
+                <Send size={17} />
+                Send
+              </button>
+            </form>
+          )}
         </section>
       </section>
       {previewImage && <ImagePreviewModal src={previewImage.src} alt={previewImage.alt} onClose={() => setPreviewImage(null)} />}
@@ -180,6 +191,13 @@ function ProofBox({ onPreview, proof, title }: { onPreview: (src: string) => voi
       )}
     </div>
   );
+}
+
+function displayChatText(text: string) {
+  if (text.toLowerCase().includes("completed this order") || text.toLowerCase().includes("order completed by coinvera staff")) {
+    return "ORDER COMPLETED";
+  }
+  return text;
 }
 
 function ChatNav() {

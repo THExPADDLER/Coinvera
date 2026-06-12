@@ -4,7 +4,6 @@ import { AuthPanel } from "../components/AuthPanel";
 import { Brand } from "../components/Brand";
 import { MarketDashboard } from "../components/MarketDashboard";
 import { loadCustomerSession, logoutCustomer } from "../lib/auth";
-import { loadDeskSettings, money } from "../lib/desk";
 import { getCustomerWalletBalance, loadWalletLedger } from "../lib/wallet";
 import type { KycSession } from "../lib/kyc";
 
@@ -12,7 +11,6 @@ export function CustomerPage() {
   const [session, setSession] = useState<KycSession | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [settings, setSettings] = useState(loadDeskSettings());
   const [walletTick, setWalletTick] = useState(0);
   const balance = session ? getCustomerWalletBalance(session.mobile) : null;
 
@@ -20,7 +18,6 @@ export function CustomerPage() {
     setSession(loadCustomerSession());
     const sync = () => {
       setSession(loadCustomerSession());
-      setSettings(loadDeskSettings());
       loadWalletLedger();
       setWalletTick((value) => value + 1);
     };
@@ -95,17 +92,24 @@ export function CustomerPage() {
           </div>
         </div>
         <div className="exchangeRateDesk">
-          <div>
-            <span>Buy rate</span>
-            <strong>{money(settings.rates.buy)} / USDT</strong>
+          <div className="flowStep active">
+            <span>01</span>
+            <strong>Choose direction</strong>
+            <small>Buy or sell quote opens only after you enter the matching flow.</small>
           </div>
-          <div>
-            <span>Sell rate</span>
-            <strong>{money(settings.rates.sell)} / USDT</strong>
+          <div className="flowStep">
+            <span>02</span>
+            <strong>Verify wallet</strong>
+            <small>USDT wallet balance, payment proof, and payout details stay attached to the order.</small>
           </div>
-          <div className="wide">
+          <div className="flowStep">
+            <span>03</span>
+            <strong>Settle with chat proof</strong>
+            <small>Coinvera staff handles completion with proof inside your order chat.</small>
+          </div>
+          <div className="wide trustCallout">
             <Clock3 size={20} />
-            <span>Safe and trusted order completion targeted within 30 minutes.</span>
+            <span>Minimum 50 USDT. Daily limit 2000 USDT. Clean orders targeted within 30 minutes.</span>
           </div>
         </div>
       </section>
@@ -124,14 +128,14 @@ export function CustomerPage() {
             <a className="tradeChoiceCard buy" href="/buy">
               <CircleDollarSign size={28} />
               <span>Buy USDT</span>
-              <strong>{money(settings.rates.buy)} / USDT</strong>
+              <strong>Live quote before payment</strong>
               <small>Enter USDT amount, wallet address, blockchain, and pay by UPI, account transfer, or CDM.</small>
               <ArrowRight size={19} />
             </a>
             <a className="tradeChoiceCard sell" href="/sell">
               <Landmark size={28} />
               <span>Sell USDT</span>
-              <strong>{money(settings.rates.sell)} / USDT</strong>
+              <strong>Live payout quote</strong>
               <small>Sell from verified wallet balance and receive INR by UPI or bank payout.</small>
               <ArrowRight size={19} />
             </a>

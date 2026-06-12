@@ -251,7 +251,7 @@ export function AdminPage() {
     if (order.mode === "buy" && order.customerMobile && order.deliveryMethod === "wallet") {
       creditWalletFromBuy(order.customerMobile, order.amount, order.id);
     }
-    setOrders(addOrderMessage(order.id, { sender: "admin", text: "Coinvera staff completed this order. Chat is now closed.", staffId: adminUser?.staffId, staffName: adminUser?.label }));
+    setOrders(addOrderMessage(order.id, { sender: "admin", text: "ORDER COMPLETED", staffId: adminUser?.staffId, staffName: adminUser?.label }));
     if (adminUser) {
       setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: "Completed order", orderId: order.id }));
     }

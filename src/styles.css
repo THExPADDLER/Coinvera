@@ -1082,10 +1082,30 @@ textarea:focus {
   backdrop-filter: blur(18px);
   display: grid;
   gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.exchangeRateDesk::before {
+  content: "";
+  position: absolute;
+  inset: -40% -60%;
+  background: conic-gradient(from 90deg, transparent, rgba(0, 211, 149, 0.18), transparent, rgba(255, 255, 255, 0.12), transparent);
+  animation: premiumFlowSpin 12s linear infinite;
+  pointer-events: none;
+}
+
+.exchangeRateDesk::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 17px;
+  background: linear-gradient(155deg, rgba(5, 18, 16, 0.95), rgba(4, 29, 25, 0.78));
+  pointer-events: none;
 }
 
 .exchangeRateDesk div {
-  min-height: 118px;
+  min-height: 98px;
   padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 14px;
@@ -1094,6 +1114,28 @@ textarea:focus {
   gap: 7px;
   color: #fff;
   background: linear-gradient(145deg, rgba(0, 211, 149, 0.16), rgba(255, 255, 255, 0.06));
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  animation: premiumStepIn 0.78s ease both;
+}
+
+.exchangeRateDesk div:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.exchangeRateDesk div:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.exchangeRateDesk div::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 0 36%, rgba(255, 255, 255, 0.16) 48%, transparent 60% 100%);
+  transform: translateX(-140%);
+  animation: premiumSweep 4.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .exchangeRateDesk div.wide {
@@ -1105,14 +1147,30 @@ textarea:focus {
 }
 
 .exchangeRateDesk span {
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--teal);
   font-size: 12px;
   text-transform: uppercase;
   font-weight: 900;
 }
 
 .exchangeRateDesk strong {
-  font-size: clamp(28px, 4vw, 42px);
+  font-size: clamp(20px, 2.2vw, 28px);
+  line-height: 1.05;
+}
+
+.exchangeRateDesk small {
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.45;
+  font-weight: 650;
+}
+
+.exchangeRateDesk .flowStep.active {
+  border-color: rgba(0, 211, 149, 0.42);
+  background: linear-gradient(145deg, rgba(0, 211, 149, 0.26), rgba(255, 255, 255, 0.06));
+}
+
+.exchangeRateDesk .trustCallout {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .homeReviewBand {
@@ -2633,6 +2691,20 @@ button.qrBox:disabled {
   cursor: not-allowed;
 }
 
+.chatEndedBox {
+  min-height: 58px;
+  margin: 12px;
+  border: 1px solid rgba(17, 146, 118, 0.2);
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--tealDark);
+  background: linear-gradient(135deg, #f3fffb, #ffffff);
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
 .messageDayList {
   display: grid;
   gap: 18px;
@@ -3753,6 +3825,34 @@ tbody tr:hover {
   }
 }
 
+@keyframes premiumFlowSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes premiumStepIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes premiumSweep {
+  0%,
+  42% {
+    transform: translateX(-140%);
+  }
+  72%,
+  100% {
+    transform: translateX(140%);
+  }
+}
+
 @keyframes walletRise {
   from {
     opacity: 0;
@@ -4199,7 +4299,10 @@ tbody tr:hover {
   .compactWalletDisplay .sellerQrBox,
   .walletListItem,
   .walletHistoryPanel .emptyState::before,
-  .walletHistoryPanel .emptyState::after {
+  .walletHistoryPanel .emptyState::after,
+  .exchangeRateDesk::before,
+  .exchangeRateDesk div,
+  .exchangeRateDesk div::before {
     animation: none;
   }
 }
