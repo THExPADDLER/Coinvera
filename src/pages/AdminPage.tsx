@@ -390,12 +390,18 @@ export function AdminPage() {
           <h1>Coinvera Admin Desk</h1>
           <p>Pay customers, receive INR, release USDT, export orders, and monitor Coinvera settlement exposure.</p>
         </div>
-        <div className="adminAuth">
+        <form
+          className="adminAuth"
+          onSubmit={(event) => {
+            event.preventDefault();
+            unlock();
+          }}
+        >
           {!adminUser ? (
             <>
               <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" />
               <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Password" />
-              <button className="primaryButton compact" type="button" onClick={unlock}>
+              <button className="primaryButton compact" type="submit">
                 <Lock size={17} />
                 Sign in
               </button>
@@ -420,23 +426,14 @@ export function AdminPage() {
               </button>
             </>
           )}
-        </div>
+        </form>
       </header>
 
       {!adminUser ? (
         <section className="lockedPanel">
           <ShieldCheck size={34} />
           <h2>Admin access required</h2>
-          <p>Use the demo role credentials below. Customer and admin pages are separate, but orders are shared through browser storage.</p>
-          <div className="credentialGrid">
-            {staffAccounts.map((user) => (
-              <div key={user.username}>
-                <strong>{user.fullName}</strong>
-                <span>{user.username} / {user.password}</span>
-                <span>{user.staffId}</span>
-              </div>
-            ))}
-          </div>
+          <p>Enter your Coinvera owner, manager, or staff credentials to continue.</p>
         </section>
       ) : (
         <>
