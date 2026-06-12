@@ -6,7 +6,7 @@ import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
 import { loadCustomerUsers } from "../lib/auth";
 import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
-import type { AdminActivityLog, AdminRole, AdminStaffAccount, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus, WalletDeposit, WalletWithdrawal } from "../lib/types";
+import type { AdminActivityLog, AdminRole, AdminStaffAccount, BankAccountOption, BlockchainDeposit, CustomerUser, CustomerWalletBalance, DeskOrder, DeskSettings, OrderStatus, WalletDeposit, WalletLedgerEntry, WalletWithdrawal } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { imageFileToCompressedDataUrl, isImageData } from "../lib/files";
@@ -46,6 +46,7 @@ export function AdminPage() {
   const [users, setUsers] = useState<CustomerUser[]>([]);
   const [logs, setLogs] = useState<AdminActivityLog[]>([]);
   const [walletDeposits, setWalletDeposits] = useState<WalletDeposit[]>([]);
+  const [walletLedger, setWalletLedger] = useState<WalletLedgerEntry[]>([]);
   const [walletWithdrawals, setWalletWithdrawals] = useState<WalletWithdrawal[]>([]);
   const [reviews, setReviews] = useState<CustomerReview[]>([]);
   const [staffAccounts, setStaffAccounts] = useState<AdminStaffAccount[]>([]);
@@ -66,13 +67,16 @@ export function AdminPage() {
     return orders.filter((order) => !["Completed", "Cancelled"].includes(order.status) && (!order.assignedStaffId || order.assignedStaffId === adminUser.staffId));
   }, [adminUser, orders]);
   const summary = useMemo(
-    () => ({
-      open: activeOrders.length,
-      volume: activeOrders.reduce((sum, order) => sum + order.amount, 0),
-      receivable: activeOrders.filter((order) => order.mode === "buy").reduce((sum, order) => sum + order.inr, 0),
-      payable: activeOrders.filter((order) => order.mode === "sell").reduce((sum, order) => sum + order.inr, 0)
-    }),
-    [activeOrders]
+    () => {
+      const walletBalance = deskWalletBalance(walletLedger);
+      return {
+        open: activeOrders.length,
+        volume: activeOrders.reduce((sum, order) => sum + order.amount, 0) + walletBalance.available + walletBalance.locked,
+        receivable: activeOrders.filter((order) => order.mode === "buy").reduce((sum, order) => sum + order.inr, 0),
+        payable: activeOrders.filter((order) => order.mode === "sell").reduce((sum, order) => sum + order.inr, 0)
+      };
+    },
+    [activeOrders, walletLedger]
   );
 
   useEffect(() => {
@@ -80,6 +84,7 @@ export function AdminPage() {
     setUsers(loadCustomerUsers());
     setLogs(loadActivityLogs());
     setWalletDeposits(loadWalletDeposits());
+    setWalletLedger(loadWalletLedger());
     setWalletWithdrawals(loadWalletWithdrawals());
     setReviews(loadReviews());
     setStaffAccounts(loadStaffAccounts());
@@ -89,6 +94,7 @@ export function AdminPage() {
       setSettings(loadDeskSettings());
       setLogs(loadActivityLogs());
       setWalletDeposits(loadWalletDeposits());
+      setWalletLedger(loadWalletLedger());
       setWalletWithdrawals(loadWalletWithdrawals());
       setReviews(loadReviews());
       setStaffAccounts(loadStaffAccounts());
@@ -1498,4 +1504,38 @@ function inPeriod(value: string | undefined, start: number, end: number) {
   if (!value) return false;
   const time = new Date(value).getTime();
   return Number.isFinite(time) && time >= start && time <= end;
+}
+
+function deskWalletBalance(entries: WalletLedgerEntry[]): CustomerWalletBalance {
+  return entries.reduce<CustomerWalletBalance>(
+    (balance, entry) => {
+      if (entry.type === "deposit_pending") balance.pending += entry.amount;
+      if (entry.type === "deposit_verified") {
+        balance.pending -= entry.amount;
+        balance.available += entry.amount;
+      }
+      if (entry.type === "deposit_rejected") balance.pending -= entry.amount;
+      if (entry.type === "buy_credited") balance.available += entry.amount;
+      if (entry.type === "sell_locked") {
+        balance.available -= entry.amount;
+        balance.locked += entry.amount;
+      }
+      if (entry.type === "sell_completed") balance.locked -= entry.amount;
+      if (entry.type === "sell_cancelled") {
+        balance.locked -= entry.amount;
+        balance.available += entry.amount;
+      }
+      if (entry.type === "withdraw_locked") {
+        balance.available -= entry.amount;
+        balance.locked += entry.amount;
+      }
+      if (entry.type === "withdraw_completed") balance.locked -= entry.amount;
+      if (entry.type === "withdraw_cancelled") {
+        balance.locked -= entry.amount;
+        balance.available += entry.amount;
+      }
+      return balance;
+    },
+    { available: 0, pending: 0, locked: 0 }
+  );
 }
