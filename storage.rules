@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() ? request.auth.token.role : null;
+    }
+
+    function isDeskTeam() {
+      return role() in ["owner", "manager", "operator"];
+    }
+
+    function isManagerOrOwner() {
+      return role() in ["owner", "manager"];
+    }
+
+    function isOwner() {
+      return role() == "owner";
+    }
+
+    function isImageUnder5Mb() {
+      return request.resource != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches("image/.*");
+    }
+
+    match /coinvera/customer-proofs/{uid}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isDeskTeam());
+      allow write: if signedIn() && request.auth.uid == uid && isImageUnder5Mb();
+      allow delete: if isOwner();
+    }
+
+    match /coinvera/admin-proofs/{orderId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if isDeskTeam() && isImageUnder5Mb();
+      allow delete: if isOwner();
+    }
+
+    match /coinvera/settings/{fileName} {
+      allow read: if true;
+      allow write, delete: if isOwner() && isImageUnder5Mb();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,120 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() ? request.auth.token.role : null;
+    }
+
+    function isOwner() {
+      return role() == "owner";
+    }
+
+    function isManager() {
+      return role() == "manager";
+    }
+
+    function isStaff() {
+      return role() == "operator";
+    }
+
+    function isDeskTeam() {
+      return isOwner() || isManager() || isStaff();
+    }
+
+    function isManagerOrOwner() {
+      return isOwner() || isManager();
+    }
+
+    function ownsByUid(data) {
+      return signedIn() && data.customerAuthUid == request.auth.uid;
+    }
+
+    function createsOwnCustomerDoc() {
+      return signedIn() && request.resource.data.authUid == request.auth.uid;
+    }
+
+    function createsOwnOrder() {
+      return signedIn()
+        && request.resource.data.customerAuthUid == request.auth.uid
+        && request.resource.data.mode in ["buy", "sell"]
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 50
+        && request.resource.data.amount <= 5000
+        && request.resource.data.status in ["Payment Submitted", "USDT Submitted", "Processing", "Awaiting Payment", "Awaiting USDT"];
+    }
+
+    function createsOwnWalletRecord() {
+      return signedIn()
+        && request.resource.data.customerAuthUid == request.auth.uid
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+    }
+
+    match /CoinveraData/settings/items/{settingId} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+
+    match /CoinveraData/users/items/{userId} {
+      allow read: if isDeskTeam() || ownsByUid(resource.data);
+      allow create: if createsOwnCustomerDoc();
+      allow update: if isDeskTeam() || (ownsByUid(resource.data) && request.resource.data.authUid == resource.data.authUid);
+      allow delete: if isOwner();
+    }
+
+    match /CoinveraData/customerPreferences/items/{preferenceId} {
+      allow read, write: if isDeskTeam() || ownsByUid(resource.data) || ownsByUid(request.resource.data);
+    }
+
+    match /CoinveraData/orders/items/{orderId} {
+      allow read: if isDeskTeam() || ownsByUid(resource.data);
+      allow create: if createsOwnOrder() || isDeskTeam();
+      allow update: if isDeskTeam();
+      allow delete: if isOwner();
+    }
+
+    match /CoinveraData/walletDeposits/items/{depositId} {
+      allow read: if isDeskTeam() || ownsByUid(resource.data);
+      allow create: if createsOwnWalletRecord();
+      allow update: if isManagerOrOwner();
+      allow delete: if isOwner();
+    }
+
+    match /CoinveraData/walletWithdrawals/items/{withdrawalId} {
+      allow read: if isDeskTeam() || ownsByUid(resource.data);
+      allow create: if createsOwnWalletRecord();
+      allow update: if isManagerOrOwner();
+      allow delete: if isOwner();
+    }
+
+    match /CoinveraData/walletLedger/items/{ledgerId} {
+      allow read: if isDeskTeam() || ownsByUid(resource.data);
+      allow create, update, delete: if isManagerOrOwner();
+    }
+
+    match /CoinveraData/activityLogs/items/{logId} {
+      allow read: if isOwner();
+      allow create: if isDeskTeam();
+      allow update, delete: if false;
+    }
+
+    match /CoinveraData/staff/items/{staffId} {
+      allow read, write: if isOwner();
+    }
+
+    match /CoinveraData/reviews/items/{reviewId} {
+      allow read: if true;
+      allow create: if signedIn();
+      allow update, delete: if isManagerOrOwner();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
