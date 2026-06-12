@@ -1407,6 +1407,113 @@ button.qrBox:disabled {
   margin: 0;
 }
 
+.sellModeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.sellModeCard {
+  min-height: 142px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  color: var(--ink);
+  text-align: left;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(241, 250, 247, 0.88)),
+    #fff;
+  box-shadow: 0 16px 38px rgba(15, 42, 37, 0.08);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.sellModeCard:hover,
+.sellModeCard.active {
+  transform: translateY(-2px);
+  border-color: rgba(0, 211, 149, 0.55);
+  box-shadow: 0 20px 46px rgba(0, 95, 73, 0.16);
+}
+
+.sellModeCard svg {
+  color: var(--tealDark);
+}
+
+.sellModeCard strong {
+  font-size: 17px;
+}
+
+.sellModeCard span {
+  color: var(--muted);
+  line-height: 1.45;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.directSellNotice,
+.directDepositHeader {
+  padding: 14px;
+  border: 1px solid rgba(0, 211, 149, 0.26);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f1fffb, #fff);
+}
+
+.directSellNotice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--tealDark);
+  font-weight: 850;
+  line-height: 1.4;
+}
+
+.directDepositForm {
+  animation: softRise 260ms ease both;
+}
+
+.directDepositHeader {
+  display: grid;
+  gap: 7px;
+}
+
+.directDepositHeader .softButton {
+  width: fit-content;
+  min-height: 36px;
+}
+
+.directDepositHeader strong {
+  font-size: clamp(24px, 4vw, 36px);
+  line-height: 1;
+}
+
+.directDepositHeader span {
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.directDepositGrid {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.directWalletDisplay {
+  margin-top: 0;
+  min-height: 174px;
+  align-content: center;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(0, 211, 149, 0.12), transparent 34%),
+    #fff;
+}
+
+.twoTabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .accountGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4164,6 +4271,8 @@ tbody tr:hover {
   .tradeForm,
   .quoteBar,
   .rateCards,
+  .sellModeGrid,
+  .directDepositGrid,
   .metricGrid,
   .adminMenuGrid,
   .profileHero,
