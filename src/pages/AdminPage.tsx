@@ -298,11 +298,6 @@ export function AdminPage() {
       setToast("This role cannot verify deposits");
       return;
     }
-    const holdLeft = new Date(deposit.holdUntil).getTime() - Date.now();
-    if (holdLeft > 0) {
-      setToast("30 minute verification hold is still active");
-      return;
-    }
     setWalletDeposits(verifyWalletDeposit(deposit.id, { staffId: adminUser.staffId, staffName: adminUser.label }));
     setLogs(addActivityLog({ staffId: adminUser.staffId, staffName: adminUser.label, role: adminUser.role, action: `Verified wallet deposit ${deposit.id}`, detail: `${deposit.amount} USDT for ${deposit.customerMobile}` }));
     setToast(`${deposit.id} verified`);
@@ -1121,7 +1116,7 @@ function WalletDepositsSection({
                     </td>
                     <td>
                       <div className="actionRow">
-                        <button type="button" disabled={deposit.status !== "Pending Verification" || holdLeft > 0} onClick={() => onVerify(deposit)}>Mark Verified</button>
+                        <button type="button" disabled={deposit.status !== "Pending Verification"} onClick={() => onVerify(deposit)}>Mark Verified</button>
                         <button type="button" disabled={deposit.status !== "Pending Verification"} onClick={() => onReject(deposit)}>Reject / Fake</button>
                       </div>
                     </td>
