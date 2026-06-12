@@ -277,10 +277,8 @@ export function AdminPage() {
     const filteredDeposits = walletDeposits.filter((deposit) => inPeriod(deposit.createdAt, period.start, period.end) || inPeriod(deposit.verifiedAt, period.start, period.end) || inPeriod(deposit.rejectedAt, period.start, period.end));
     const filteredWithdrawals = walletWithdrawals.filter((withdrawal) => inPeriod(withdrawal.createdAt, period.start, period.end) || inPeriod(withdrawal.completedAt, period.start, period.end) || inPeriod(withdrawal.cancelledAt, period.start, period.end));
     const filteredLedger = loadWalletLedger().filter((entry) => inPeriod(entry.at, period.start, period.end));
-    const filteredLogs = logs.filter((log) => inPeriod(log.at, period.start, period.end));
     const { downloadAdminReportPdf } = await import("../lib/reportPdf");
     downloadAdminReportPdf({
-      activityLogs: filteredLogs,
       customers: users,
       deposits: filteredDeposits,
       from: reportFrom,

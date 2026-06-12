@@ -11,7 +11,7 @@ export function CustomerPage() {
   const [session, setSession] = useState<KycSession | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [walletTick, setWalletTick] = useState(0);
+  const [, setWalletTick] = useState(0);
   const balance = session ? getCustomerWalletBalance(session.mobile) : null;
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export function CustomerPage() {
       window.removeEventListener("coinvera-wallet-updated", sync);
       window.removeEventListener("storage", sync);
     };
-  }, [walletTick]);
+  }, []);
 
   function logout() {
     logoutCustomer();

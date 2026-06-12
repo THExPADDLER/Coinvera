@@ -1,4 +1,4 @@
-import { isKycComplete, loadKycSession, saveKycSession } from "./kyc";
+import { isKycComplete, kycStorageKey, loadKycSession, saveKycSession } from "./kyc";
 import type { KycSession } from "./kyc";
 import type { CustomerUser } from "./types";
 import { saveUsersToFirebase } from "./remoteStore";
@@ -27,6 +27,7 @@ export function saveCustomerSession(session: KycSession, email = ""): KycSession
 
 export function logoutCustomer(): void {
   localStorage.removeItem(authStorageKey);
+  localStorage.removeItem(kycStorageKey);
   window.dispatchEvent(new Event("coinvera-auth-updated"));
 }
 

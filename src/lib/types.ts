@@ -248,6 +248,7 @@ export interface BankAccountOption {
 }
 
 export interface DeskSettings {
+  limitPolicyVersion?: number;
   rates: DeskRates;
   limits: TradeQuantityLimits;
   payment: PaymentDetails;

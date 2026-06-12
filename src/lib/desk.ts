@@ -45,15 +45,16 @@ export const defaultCdmAccounts: BankAccountOption[] = [
 ];
 
 export const defaultSettings: DeskSettings = {
+  limitPolicyVersion: 2,
   rates: {
     buy: 102,
     sell: 99
   },
   limits: {
     buyMin: 50,
-    buyMax: 2000,
+    buyMax: 5000,
     sellMin: 50,
-    sellMax: 2000
+    sellMax: 5000
   },
   payment: {
     holderName: "Coinvera Exchange Desk",
@@ -151,9 +152,17 @@ export function loadDeskSettings(): DeskSettings {
               bankName: storedPayment.cdmBankName
             }
           ];
+    const limits = { ...defaultSettings.limits, ...stored.limits };
+    if (stored.limitPolicyVersion !== defaultSettings.limitPolicyVersion && limits.buyMax === 2000) {
+      limits.buyMax = defaultSettings.limits.buyMax;
+    }
+    if (stored.limitPolicyVersion !== defaultSettings.limitPolicyVersion && limits.sellMax === 2000) {
+      limits.sellMax = defaultSettings.limits.sellMax;
+    }
     return {
+      limitPolicyVersion: defaultSettings.limitPolicyVersion,
       rates: { ...defaultSettings.rates, ...stored.rates },
-      limits: { ...defaultSettings.limits, ...stored.limits },
+      limits,
       payment: storedPayment,
       blockchains,
       accountTransfers,
