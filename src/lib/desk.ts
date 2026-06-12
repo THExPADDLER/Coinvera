@@ -49,6 +49,12 @@ export const defaultSettings: DeskSettings = {
     buy: 102,
     sell: 99
   },
+  limits: {
+    buyMin: 50,
+    buyMax: 2000,
+    sellMin: 50,
+    sellMax: 2000
+  },
   payment: {
     holderName: "Coinvera Exchange Desk",
     upiId: "coinvera@upi",
@@ -147,6 +153,7 @@ export function loadDeskSettings(): DeskSettings {
           ];
     return {
       rates: { ...defaultSettings.rates, ...stored.rates },
+      limits: { ...defaultSettings.limits, ...stored.limits },
       payment: storedPayment,
       blockchains,
       accountTransfers,

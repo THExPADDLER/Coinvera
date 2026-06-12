@@ -207,6 +207,13 @@ export interface DeskRates {
   sell: number;
 }
 
+export interface TradeQuantityLimits {
+  buyMin: number;
+  buyMax: number;
+  sellMin: number;
+  sellMax: number;
+}
+
 export interface PaymentDetails {
   holderName: string;
   upiId: string;
@@ -242,6 +249,7 @@ export interface BankAccountOption {
 
 export interface DeskSettings {
   rates: DeskRates;
+  limits: TradeQuantityLimits;
   payment: PaymentDetails;
   blockchains: BlockchainDeposit[];
   accountTransfers: BankAccountOption[];

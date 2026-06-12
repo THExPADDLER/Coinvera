@@ -719,6 +719,10 @@ function describeSettingsChanges(previous: DeskSettings, next: DeskSettings): st
 
   addChange("Buy price per USDT", money(previous.rates.buy), money(next.rates.buy));
   addChange("Sell price per USDT", money(previous.rates.sell), money(next.rates.sell));
+  addChange("Buy minimum quantity", usdt(previous.limits.buyMin), usdt(next.limits.buyMin));
+  addChange("Buy daily maximum quantity", usdt(previous.limits.buyMax), usdt(next.limits.buyMax));
+  addChange("Sell minimum quantity", usdt(previous.limits.sellMin), usdt(next.limits.sellMin));
+  addChange("Sell daily maximum quantity", usdt(previous.limits.sellMax), usdt(next.limits.sellMax));
   addChange("UPI holder name", previous.payment.holderName, next.payment.holderName);
   addChange("UPI ID", previous.payment.upiId, next.payment.upiId);
   addImageChange("UPI QR barcode", previous.payment.upiQr, next.payment.upiQr);
@@ -1243,6 +1247,10 @@ function AdminSettings({
     setDraft({ ...draft, rates: { ...draft.rates, [key]: Number(value) } });
   }
 
+  function setLimit(key: keyof DeskSettings["limits"], value: string) {
+    setDraft({ ...draft, limits: { ...draft.limits, [key]: Number(value) } });
+  }
+
   function setPayment(key: keyof DeskSettings["payment"], value: string) {
     setDraft({ ...draft, payment: { ...draft.payment, [key]: value } });
   }
@@ -1326,6 +1334,22 @@ function AdminSettings({
         <label>
           Sell price per USDT
           <input type="number" value={draft.rates.sell} onChange={(event) => setRate("sell", event.target.value)} />
+        </label>
+        <label>
+          Buy minimum USDT
+          <input type="number" min="0" step="0.01" value={draft.limits.buyMin} onChange={(event) => setLimit("buyMin", event.target.value)} />
+        </label>
+        <label>
+          Buy daily max USDT
+          <input type="number" min="0" step="0.01" value={draft.limits.buyMax} onChange={(event) => setLimit("buyMax", event.target.value)} />
+        </label>
+        <label>
+          Sell minimum USDT
+          <input type="number" min="0" step="0.01" value={draft.limits.sellMin} onChange={(event) => setLimit("sellMin", event.target.value)} />
+        </label>
+        <label>
+          Sell daily max USDT
+          <input type="number" min="0" step="0.01" value={draft.limits.sellMax} onChange={(event) => setLimit("sellMax", event.target.value)} />
         </label>
         <label>
           UPI holder name

@@ -4,9 +4,10 @@ import { Brand } from "../components/Brand";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
-import { createOrder, loadDeskSettings, money } from "../lib/desk";
+import { createOrder, loadDeskSettings, loadOrders, money } from "../lib/desk";
 import { imageFileToCompressedDataUrl, imageSizeLabel } from "../lib/files";
 import { loadCustomerPreferences, saveReceivingWallet } from "../lib/preferences";
+import { dailyTradeRemaining, dailyTradeUsed, tradeLimitCheck } from "../lib/tradeLimits";
 import type { Network } from "../lib/types";
 
 type PayMethod = "upi" | "account" | "cdm";
@@ -31,6 +32,9 @@ export function BuyPage() {
   const [previewQr, setPreviewQr] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const total = useMemo(() => Number(amount || 0) * settings.rates.buy, [amount, settings.rates.buy]);
+  const dailyUsed = session ? dailyTradeUsed(loadOrders(), session.mobile, "buy") : 0;
+  const dailyRemaining = session ? dailyTradeRemaining(loadOrders(), session.mobile, "buy", settings) : settings.limits.buyMax;
+  const limitError = tradeLimitCheck({ amount: Number(amount || 0), dailyUsed, mode: "buy", settings });
   const selectedAccount = settings.accountTransfers.find((account) => account.id === accountId) || settings.accountTransfers[0];
   const selectedCdm = settings.cdmAccounts.find((account) => account.id === cdmId) || settings.cdmAccounts[0];
   const preferences = session ? loadCustomerPreferences(session.mobile) : null;
@@ -41,6 +45,11 @@ export function BuyPage() {
   function submitPayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!method || !session) return;
+    const limitMessage = tradeLimitCheck({ amount: Number(amount || 0), dailyUsed: dailyTradeUsed(loadOrders(), session.mobile, "buy"), mode: "buy", settings });
+    if (limitMessage) {
+      setToast(limitMessage);
+      return;
+    }
     const order = createOrder({
       mode: "buy",
       name: session.fullName,
@@ -84,8 +93,11 @@ export function BuyPage() {
           <div className="tradeForm">
             <label>
               USDT amount
-              <input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min="1" step="0.01" placeholder="100" />
+              <input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min={settings.limits.buyMin} max={dailyRemaining || settings.limits.buyMax} step="0.01" placeholder="100" />
             </label>
+            <div className="limitNote wide">
+              Min {settings.limits.buyMin} USDT. Daily buy limit {settings.limits.buyMax} USDT. Remaining today {dailyRemaining} USDT.
+            </div>
             <div className="paymentTabs deliveryTabs wide">
               <button type="button" className={deliveryMode === "wallet" ? "active" : ""} onClick={() => setDeliveryMode("wallet")}>Receive in Coinvera Wallet</button>
               <button type="button" className={deliveryMode === "external" ? "active" : ""} onClick={() => setDeliveryMode("external")}>Send to external address</button>
@@ -151,7 +163,7 @@ export function BuyPage() {
                 <small>{Number(amount || 0)} USDT * {settings.rates.buy}</small>
               </div>
             </div>
-            <button className="primaryButton wide" type="button" disabled={!Number(amount) || (deliveryMode === "external" && !wallet)} onClick={() => setMethod("upi")}>
+            <button className="primaryButton wide" type="button" disabled={!Number(amount) || Boolean(limitError) || (deliveryMode === "external" && !wallet)} onClick={() => setMethod("upi")}>
               Continue to payment
             </button>
           </div>

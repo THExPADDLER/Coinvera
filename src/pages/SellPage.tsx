@@ -3,8 +3,9 @@ import { FormEvent, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
-import { createOrder, loadDeskSettings, money, usdt } from "../lib/desk";
+import { createOrder, loadDeskSettings, loadOrders, money, usdt } from "../lib/desk";
 import { loadCustomerPreferences, savePayoutMethod } from "../lib/preferences";
+import { dailyTradeRemaining, dailyTradeUsed, tradeLimitCheck } from "../lib/tradeLimits";
 import { getCustomerWalletBalance, lockWalletForSell } from "../lib/wallet";
 
 export function SellPage() {
@@ -24,6 +25,10 @@ export function SellPage() {
   const preferences = session ? loadCustomerPreferences(session.mobile) : null;
   const savedPayouts = preferences?.payoutMethods.filter((item) => item.type === payoutMode) || [];
   const balance = session ? getCustomerWalletBalance(session.mobile) : { available: 0, pending: 0, locked: 0 };
+  const dailyUsed = session ? dailyTradeUsed(loadOrders(), session.mobile, "sell") : 0;
+  const dailyRemaining = session ? dailyTradeRemaining(loadOrders(), session.mobile, "sell", settings) : settings.limits.sellMax;
+  const maxSellAmount = Math.min(balance.available || 0, dailyRemaining || settings.limits.sellMax);
+  const limitError = tradeLimitCheck({ amount: Number(amount || 0), dailyUsed, mode: "sell", settings });
 
   if (!session) {
     return (
@@ -45,6 +50,11 @@ export function SellPage() {
     const sellAmount = Number(amount);
     if (!sellAmount || sellAmount <= 0) {
       setToast("Enter valid USDT amount");
+      return;
+    }
+    const limitMessage = tradeLimitCheck({ amount: sellAmount, dailyUsed: dailyTradeUsed(loadOrders(), session.mobile, "sell"), mode: "sell", settings });
+    if (limitMessage) {
+      setToast(limitMessage);
       return;
     }
     if (balance.available + 0.000001 < sellAmount) {
@@ -111,8 +121,11 @@ export function SellPage() {
           <form className="tradeForm" onSubmit={submitSell}>
             <label>
               USDT amount
-              <input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min="1" step="0.01" max={balance.available || undefined} required placeholder="100" />
+              <input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min={settings.limits.sellMin} step="0.01" max={maxSellAmount || undefined} required placeholder="100" />
             </label>
+            <div className="limitNote wide">
+              Min {settings.limits.sellMin} USDT. Daily sell limit {settings.limits.sellMax} USDT. Remaining today {dailyRemaining} USDT.
+            </div>
             <div className="quoteBar">
               <div>
                 <span>Rate</span>
@@ -191,7 +204,7 @@ export function SellPage() {
                 Save this payout detail for faster future payouts
               </label>
             </div>
-            <button className="primaryButton wide" type="submit" disabled={!balance.available || Number(amount || 0) > balance.available}>Submit Sell Request</button>
+            <button className="primaryButton wide" type="submit" disabled={!balance.available || Boolean(limitError) || Number(amount || 0) > balance.available}>Submit Sell Request</button>
           </form>
         </section>
       </section>
