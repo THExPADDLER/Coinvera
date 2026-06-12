@@ -16,7 +16,28 @@ export type OrderStatus =
 
 export type Network = string;
 
-export type AdminRole = "owner" | "manager" | "operator" | "viewer";
+export type AdminRole = "owner" | "manager" | "operator";
+
+export interface AdminStaffAccount {
+  id: string;
+  staffId: string;
+  role: AdminRole;
+  fullName: string;
+  username: string;
+  password: string;
+  email: string;
+  mobile: string;
+  aadhaar: string;
+  pan: string;
+  accountNumber: string;
+  ifsc: string;
+  bankName: string;
+  upiId: string;
+  walletAddress?: string;
+  status: "active" | "inactive";
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface DeskOrder {
   id: string;

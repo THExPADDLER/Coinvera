@@ -6,7 +6,7 @@ import { StatusPill } from "../components/StatusPill";
 import { loadCustomerSession } from "../lib/auth";
 import { addActivityLog, addOrderMessage, loadOrders, money, usdt } from "../lib/desk";
 import { isImageData } from "../lib/files";
-import type { DeskOrder } from "../lib/types";
+import type { AdminRole, DeskOrder } from "../lib/types";
 
 export function ChatPage() {
   const orderId = window.location.pathname.split("/").filter(Boolean)[1];
@@ -20,7 +20,10 @@ export function ChatPage() {
   const order = useMemo(() => orders.find((item) => item.id === orderId), [orders, orderId]);
   const staffId = params.get("staffId") || order?.assignedStaffId || "CV-STAFF";
   const staffName = params.get("staffName") || order?.assignedStaffName || "Coinvera Staff";
+  const staffRole = (params.get("role") || order?.assignedStaffRole || "operator") as AdminRole;
   const chatClosed = Boolean(order && ["Completed", "Cancelled"].includes(order.status));
+  const adminBlocked =
+    Boolean(order && isAdminView && staffRole === "operator" && (chatClosed || order.assignedStaffId !== staffId));
 
   useEffect(() => {
     const sync = () => setOrders(loadOrders());
@@ -48,7 +51,7 @@ export function ChatPage() {
 
   function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!order || chatClosed || !text.trim()) return;
+    if (!order || chatClosed || adminBlocked || !text.trim()) return;
     setOrders(addOrderMessage(order.id, { sender: isAdminView ? "admin" : "customer", text: text.trim(), staffId: isAdminView ? staffId : undefined, staffName: isAdminView ? staffName : undefined }));
     if (isAdminView) {
       addActivityLog({ staffId, staffName, role: order.assignedStaffRole || "operator", action: "Sent chat message", orderId: order.id });
@@ -79,6 +82,20 @@ export function ChatPage() {
           <h2>Order not found</h2>
           <p>This chat will appear after an order is submitted.</p>
           <a className="primaryButton" href="/orders">My Orders</a>
+        </section>
+      </main>
+    );
+  }
+
+  if (adminBlocked) {
+    return (
+      <main className="flowShell">
+        <ChatNav />
+        <section className="lockedPanel">
+          <LockKeyhole size={36} />
+          <h2>Chat locked</h2>
+          <p>This order is closed or assigned to another staff member.</p>
+          <a className="primaryButton" href="/control-room">Back to Admin</a>
         </section>
       </main>
     );
@@ -116,7 +133,7 @@ export function ChatPage() {
           <div className="chatMessages">
             {(order.chat || []).map((message) => (
               <article className={`chatBubble ${message.sender}`} key={message.id}>
-                <span>{message.sender === "admin" ? `Coinvera Staff${message.staffId ? ` · ${message.staffId}` : ""}` : message.sender === "system" ? "System" : "Customer"}</span>
+                <span>{message.sender === "admin" ? `Coinvera Staff${message.staffId ? ` - ${message.staffId}` : ""}` : message.sender === "system" ? "System" : "Customer"}</span>
                 <p>{message.text}</p>
                 {message.attachment && (
                   isImageData(message.attachment) ? (
@@ -133,8 +150,8 @@ export function ChatPage() {
             ))}
           </div>
           <form className="chatComposer" onSubmit={sendMessage}>
-            <input value={text} onChange={(event) => setText(event.target.value)} disabled={chatClosed} placeholder={chatClosed ? "Chat closed" : "Type message..."} />
-            <button className="primaryButton" type="submit">
+            <input value={text} onChange={(event) => setText(event.target.value)} disabled={chatClosed || adminBlocked} placeholder={chatClosed || adminBlocked ? "Chat closed" : "Type message..."} />
+            <button className="primaryButton" type="submit" disabled={chatClosed || adminBlocked}>
               <Send size={17} />
               Send
             </button>

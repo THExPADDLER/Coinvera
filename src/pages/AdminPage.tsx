@@ -1,4 +1,4 @@
-import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, Plus, RefreshCw, ShieldCheck, SlidersHorizontal, Star, Trash2, UsersRound, Wallet } from "lucide-react";
+import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, Plus, RefreshCw, ShieldCheck, SlidersHorizontal, Star, Trash2, UserPlus, UsersRound, Wallet } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
@@ -6,14 +6,15 @@ import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
 import { loadCustomerUsers } from "../lib/auth";
 import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, toCsv, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
-import type { AdminActivityLog, AdminRole, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus, WalletDeposit, WalletWithdrawal } from "../lib/types";
+import type { AdminActivityLog, AdminRole, AdminStaffAccount, BankAccountOption, BlockchainDeposit, CustomerUser, DeskOrder, DeskSettings, OrderStatus, WalletDeposit, WalletWithdrawal } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { imageFileToCompressedDataUrl, isImageData } from "../lib/files";
 import { cancelWalletSell, cancelWalletWithdrawal, completeWalletSell, completeWalletWithdrawal, creditWalletFromBuy, loadWalletDeposits, loadWalletWithdrawals, rejectWalletDeposit, verifyWalletDeposit } from "../lib/wallet";
 import { syncFirebaseToLocal } from "../lib/remoteStore";
 import { deleteReview, loadReviews, saveReview, type CustomerReview } from "../lib/reviews";
-import { maskEmail } from "../lib/mask";
+import { maskAddress, maskEmail, maskMobile } from "../lib/mask";
+import { loadStaffAccounts, setStaffAccountStatus, upsertStaffAccount } from "../lib/adminStaff";
 
 interface AdminUser {
   username: string;
@@ -21,13 +22,6 @@ interface AdminUser {
   label: string;
   staffId: string;
 }
-
-const adminUsers: Array<AdminUser & { password: string }> = [
-  { username: "owner", password: "1234", role: "owner", label: "Owner", staffId: "CV-OWNER-001" },
-  { username: "manager", password: "1234", role: "manager", label: "Manager", staffId: "CV-MGR-001" },
-  { username: "operator", password: "1234", role: "operator", label: "Operator", staffId: "CV-OP-101" },
-  { username: "viewer", password: "1234", role: "viewer", label: "Viewer", staffId: "CV-VIEW-001" }
-];
 
 const rolePermissions: Record<AdminRole, {
   canEditSettings: boolean;
@@ -39,11 +33,10 @@ const rolePermissions: Record<AdminRole, {
 }> = {
   owner: { canEditSettings: true, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: true },
   manager: { canEditSettings: false, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: true },
-  operator: { canEditSettings: false, canExport: false, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: false },
-  viewer: { canEditSettings: false, canExport: false, canUploadProof: false, canComplete: false, canChangeStatus: false, canManageReviews: false }
+  operator: { canEditSettings: false, canExport: false, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: false }
 };
 
-type AdminSection = "home" | "orders" | "users" | "settings" | "wallets" | "reviews" | "logs";
+type AdminSection = "home" | "orders" | "users" | "settings" | "wallets" | "reviews" | "staff" | "logs";
 
 export function AdminPage() {
   const [username, setUsername] = useState("");
@@ -55,18 +48,20 @@ export function AdminPage() {
   const [walletDeposits, setWalletDeposits] = useState<WalletDeposit[]>([]);
   const [walletWithdrawals, setWalletWithdrawals] = useState<WalletWithdrawal[]>([]);
   const [reviews, setReviews] = useState<CustomerReview[]>([]);
+  const [staffAccounts, setStaffAccounts] = useState<AdminStaffAccount[]>([]);
   const [lastSyncAt, setLastSyncAt] = useState("");
   const [settings, setSettings] = useState<DeskSettings>(loadDeskSettings());
   const [toast, setToast] = useState("");
   const [cropTarget, setCropTarget] = useState<{ draft: DeskSettings; file: File; type: "upi" | "chain"; index?: number } | null>(null);
   const [previewProof, setPreviewProof] = useState<{ src: string; alt: string } | null>(null);
   const [activeSection, setActiveSection] = useState<AdminSection>("home");
-  const permissions = adminUser ? rolePermissions[adminUser.role] : rolePermissions.viewer;
+  const permissions = adminUser ? rolePermissions[adminUser.role] : rolePermissions.operator;
 
   const activeOrders = useMemo(() => orders.filter((order) => !["Completed", "Cancelled"].includes(order.status)), [orders]);
   const visibleOrders = useMemo(() => {
-    if (!adminUser || adminUser.role !== "operator") return orders;
-    return orders.filter((order) => !order.assignedStaffId || order.assignedStaffId === adminUser.staffId);
+    if (!adminUser) return [];
+    if (adminUser.role !== "operator") return orders;
+    return orders.filter((order) => !["Completed", "Cancelled"].includes(order.status) && (!order.assignedStaffId || order.assignedStaffId === adminUser.staffId));
   }, [adminUser, orders]);
   const summary = useMemo(
     () => ({
@@ -85,6 +80,7 @@ export function AdminPage() {
     setWalletDeposits(loadWalletDeposits());
     setWalletWithdrawals(loadWalletWithdrawals());
     setReviews(loadReviews());
+    setStaffAccounts(loadStaffAccounts());
     const sync = () => {
       setOrders(loadOrders());
       setUsers(loadCustomerUsers());
@@ -93,6 +89,7 @@ export function AdminPage() {
       setWalletDeposits(loadWalletDeposits());
       setWalletWithdrawals(loadWalletWithdrawals());
       setReviews(loadReviews());
+      setStaffAccounts(loadStaffAccounts());
       setLastSyncAt(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     };
     const liveSync = window.setInterval(() => {
@@ -104,6 +101,7 @@ export function AdminPage() {
     window.addEventListener("coinvera-users-updated", sync);
     window.addEventListener("coinvera-wallet-updated", sync);
     window.addEventListener("coinvera-reviews-updated", sync);
+    window.addEventListener("coinvera-staff-accounts-updated", sync);
     window.addEventListener("storage", sync);
     return () => {
       window.clearInterval(liveSync);
@@ -113,22 +111,23 @@ export function AdminPage() {
       window.removeEventListener("coinvera-users-updated", sync);
       window.removeEventListener("coinvera-wallet-updated", sync);
       window.removeEventListener("coinvera-reviews-updated", sync);
+      window.removeEventListener("coinvera-staff-accounts-updated", sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
 
   function unlock() {
-    const found = adminUsers.find((user) => user.username === username.trim().toLowerCase() && user.password === password);
+    const found = loadStaffAccounts().find((user) => user.username.trim().toLowerCase() === username.trim().toLowerCase() && user.password === password && user.status === "active");
     if (!found) {
       setToast("Incorrect admin credentials");
       return;
     }
-    setAdminUser({ username: found.username, role: found.role, label: found.label, staffId: found.staffId });
-    setLogs(addActivityLog({ staffId: found.staffId, staffName: found.label, role: found.role, action: "Signed in to admin panel" }));
+    setAdminUser({ username: found.username, role: found.role, label: found.fullName || found.role, staffId: found.staffId });
+    setLogs(addActivityLog({ staffId: found.staffId, staffName: found.fullName || found.role, role: found.role, action: "Signed in to admin panel" }));
     setUsername("");
     setPassword("");
     setActiveSection("home");
-    setToast(`${found.label} access unlocked`);
+    setToast(`${found.fullName || found.role} access unlocked`);
   }
 
   function changeStatus(orderId: string, status: OrderStatus) {
@@ -136,8 +135,12 @@ export function AdminPage() {
       setToast("This role cannot change order status");
       return;
     }
-    setOrders(updateOrderStatus(orderId, status));
     const order = orders.find((item) => item.id === orderId);
+    if (!canWorkOrder(order)) {
+      setToast("This order is not available for your role");
+      return;
+    }
+    setOrders(updateOrderStatus(orderId, status));
     if (order?.mode === "sell" && order.customerMobile && status === "Cancelled") {
       cancelWalletSell(order.customerMobile, order.amount, order.id);
     }
@@ -153,7 +156,7 @@ export function AdminPage() {
   }
 
   function takeChat(order: DeskOrder) {
-    if (!adminUser || adminUser.role === "viewer") {
+    if (!adminUser || !canWorkOrder(order)) {
       setToast("This role cannot take chats");
       return;
     }
@@ -164,7 +167,7 @@ export function AdminPage() {
   }
 
   async function openOrder(order: DeskOrder) {
-    if (!adminUser || adminUser.role === "viewer") {
+    if (!adminUser) {
       setToast("This role cannot open orders");
       return;
     }
@@ -172,6 +175,10 @@ export function AdminPage() {
     const latest = loadOrders().find((item) => item.id === order.id);
     if (!latest) {
       setToast("Order not found after live refresh");
+      return;
+    }
+    if (["Completed", "Cancelled"].includes(latest.status)) {
+      setToast("Closed orders cannot be reopened");
       return;
     }
     const canOverride = adminUser.role === "owner" || adminUser.role === "manager";
@@ -194,7 +201,7 @@ export function AdminPage() {
       orderId: latest.id,
       detail: wasAssignedToOther ? `Previously assigned to ${latest.assignedStaffId}` : `Order locked to ${adminUser.staffId}`
     }));
-    window.location.href = `/chat/${latest.id}?admin=1&staffId=${encodeURIComponent(adminUser.staffId)}&staffName=${encodeURIComponent(adminUser.label)}`;
+    window.location.href = `/chat/${latest.id}?admin=1&staffId=${encodeURIComponent(adminUser.staffId)}&staffName=${encodeURIComponent(adminUser.label)}&role=${adminUser.role}`;
   }
 
   async function uploadAdminProof(order: DeskOrder, file: File | undefined) {
@@ -203,6 +210,10 @@ export function AdminPage() {
       return;
     }
     if (!file) return;
+    if (!canWorkOrder(order)) {
+      setToast("This order is not available for your role");
+      return;
+    }
     let proof = "";
     try {
       proof = await imageFileToCompressedDataUrl(file);
@@ -225,6 +236,10 @@ export function AdminPage() {
     }
     if (!order.adminProof) {
       setToast("Upload Coinvera proof before completing the order");
+      return;
+    }
+    if (!canWorkOrder(order)) {
+      setToast("This order is not available for your role");
       return;
     }
     updateOrder(order.id, { adminConfirmed: true, status: "Completed" });
@@ -279,7 +294,7 @@ export function AdminPage() {
   }
 
   function verifyDeposit(deposit: WalletDeposit) {
-    if (!adminUser || adminUser.role === "viewer") {
+    if (!adminUser || adminUser.role === "operator") {
       setToast("This role cannot verify deposits");
       return;
     }
@@ -294,7 +309,7 @@ export function AdminPage() {
   }
 
   function rejectDeposit(deposit: WalletDeposit) {
-    if (!adminUser || adminUser.role === "viewer") {
+    if (!adminUser || adminUser.role === "operator") {
       setToast("This role cannot reject deposits");
       return;
     }
@@ -304,7 +319,7 @@ export function AdminPage() {
   }
 
   function completeWithdrawal(withdrawal: WalletWithdrawal) {
-    if (!adminUser || adminUser.role === "viewer") {
+    if (!adminUser || adminUser.role === "operator") {
       setToast("This role cannot complete withdrawals");
       return;
     }
@@ -316,7 +331,7 @@ export function AdminPage() {
   }
 
   function cancelWithdrawal(withdrawal: WalletWithdrawal) {
-    if (!adminUser || adminUser.role === "viewer") {
+    if (!adminUser || adminUser.role === "operator") {
       setToast("This role cannot cancel withdrawals");
       return;
     }
@@ -352,6 +367,12 @@ export function AdminPage() {
     setToast("Review deleted");
   }
 
+  function canWorkOrder(order?: DeskOrder): boolean {
+    if (!adminUser || !order || ["Completed", "Cancelled"].includes(order.status)) return false;
+    if (adminUser.role === "owner" || adminUser.role === "manager") return true;
+    return order.assignedStaffId === adminUser.staffId;
+  }
+
   return (
     <main className="adminShell">
       <nav className="adminNav">
@@ -381,7 +402,7 @@ export function AdminPage() {
             </>
           ) : (
             <>
-              <span className={`roleBadge ${adminUser.role}`}>{adminUser.label} · {adminUser.staffId}</span>
+              <span className={`roleBadge ${adminUser.role}`}>{adminUser.label} - {adminUser.staffId}</span>
               <span className="liveSyncBadge">Live sync {lastSyncAt || "starting"}</span>
               <button className="softButton dark" type="button" onClick={() => setOrders(loadOrders())}>
                 <RefreshCw size={16} />
@@ -408,9 +429,9 @@ export function AdminPage() {
           <h2>Admin access required</h2>
           <p>Use the demo role credentials below. Customer and admin pages are separate, but orders are shared through browser storage.</p>
           <div className="credentialGrid">
-            {adminUsers.map((user) => (
+            {staffAccounts.map((user) => (
               <div key={user.username}>
-                <strong>{user.label}</strong>
+                <strong>{user.fullName}</strong>
                 <span>{user.username} / {user.password}</span>
                 <span>{user.staffId}</span>
               </div>
@@ -429,17 +450,18 @@ export function AdminPage() {
           {activeSection === "home" && (
             <section className="adminMenuGrid">
               <AdminMenuCard icon={<PackageCheck size={24} />} title="Orders" meta={`${orders.length} orders`} detail="Chats, proof, staff assignment, status, and completion controls." onClick={() => setActiveSection("orders")} />
-              <AdminMenuCard icon={<UsersRound size={24} />} title="Customer Users" meta="Customer registry" detail="Customer profiles, order totals, volume, and quick actions." onClick={() => setActiveSection("users")} />
-              <AdminMenuCard icon={<SlidersHorizontal size={24} />} title="Rates & Payment" meta={permissions.canEditSettings ? "Editable" : "Read only"} detail="Rates, UPI QR, bank accounts, CDM, and blockchain wallets." onClick={() => setActiveSection("settings")} />
-              <AdminMenuCard icon={<Wallet size={24} />} title="Wallet Desk" meta={`${walletDeposits.length} deposits / ${walletWithdrawals.length} withdrawals`} detail="Verify deposits, reject fake transfers, and process customer withdrawals." onClick={() => setActiveSection("wallets")} />
-              <AdminMenuCard icon={<Star size={24} />} title="Reviews" meta={`${reviews.length} reviews`} detail="Add dummy trust reviews and remove outdated customer feedback." onClick={() => setActiveSection("reviews")} />
-              <AdminMenuCard icon={<ClipboardList size={24} />} title="Activity Log" meta={`${logs.length} entries`} detail="Staff logins, assignments, proof views, status changes, and exports." onClick={() => setActiveSection("logs")} />
+              {adminUser.role !== "operator" && <AdminMenuCard icon={<UsersRound size={24} />} title="Customer Users" meta="Customer registry" detail="Customer profiles, order totals, volume, and quick actions." onClick={() => setActiveSection("users")} />}
+              {adminUser.role === "owner" && <AdminMenuCard icon={<SlidersHorizontal size={24} />} title="Rates & Payment" meta="Editable" detail="Rates, UPI QR, bank accounts, CDM, and blockchain wallets." onClick={() => setActiveSection("settings")} />}
+              {adminUser.role !== "operator" && <AdminMenuCard icon={<Wallet size={24} />} title="Wallet Desk" meta={`${walletDeposits.length} deposits / ${walletWithdrawals.length} withdrawals`} detail="Verify deposits, reject fake transfers, and process customer withdrawals." onClick={() => setActiveSection("wallets")} />}
+              {adminUser.role !== "operator" && <AdminMenuCard icon={<Star size={24} />} title="Reviews" meta={`${reviews.length} reviews`} detail="Add dummy trust reviews and remove outdated customer feedback." onClick={() => setActiveSection("reviews")} />}
+              {adminUser.role === "owner" && <AdminMenuCard icon={<UserPlus size={24} />} title="Staff Management" meta={`${staffAccounts.length} accounts`} detail="Create manager and staff logins with personal and payment details." onClick={() => setActiveSection("staff")} />}
+              {adminUser.role === "owner" && <AdminMenuCard icon={<ClipboardList size={24} />} title="Activity Log" meta={`${logs.length} entries`} detail="Staff logins, assignments, proof views, status changes, and exports." onClick={() => setActiveSection("logs")} />}
             </section>
           )}
 
           {activeSection !== "home" && <SectionBack activeSection={activeSection} onBack={() => setActiveSection("home")} />}
 
-          {activeSection === "settings" && (
+          {activeSection === "settings" && adminUser.role === "owner" && (
             permissions.canEditSettings ? (
               <AdminSettings settings={settings} onCropRequest={setCropTarget} onSave={updateSettings} />
             ) : (
@@ -450,9 +472,10 @@ export function AdminPage() {
             )
           )}
 
-          {activeSection === "users" && <CustomerUsersSection users={users} orders={orders} onCopyMobile={copyMobile} />}
-          {activeSection === "wallets" && <WalletDepositsSection deposits={walletDeposits} withdrawals={walletWithdrawals} onCancelWithdrawal={cancelWithdrawal} onCompleteWithdrawal={completeWithdrawal} onReject={rejectDeposit} onVerify={verifyDeposit} />}
-          {activeSection === "reviews" && <AdminReviewsSection canManage={permissions.canManageReviews} onDelete={removeAdminReview} onSave={saveAdminReview} reviews={reviews} />}
+          {activeSection === "users" && adminUser.role !== "operator" && <CustomerUsersSection users={users} orders={orders} onCopyMobile={copyMobile} />}
+          {activeSection === "wallets" && adminUser.role !== "operator" && <WalletDepositsSection deposits={walletDeposits} withdrawals={walletWithdrawals} onCancelWithdrawal={cancelWithdrawal} onCompleteWithdrawal={completeWithdrawal} onReject={rejectDeposit} onVerify={verifyDeposit} />}
+          {activeSection === "reviews" && adminUser.role !== "operator" && <AdminReviewsSection canManage={permissions.canManageReviews} onDelete={removeAdminReview} onSave={saveAdminReview} reviews={reviews} />}
+          {activeSection === "staff" && adminUser.role === "owner" && <StaffManagementSection accounts={staffAccounts} onSave={(account) => setStaffAccounts(upsertStaffAccount(account))} onStatus={(account, status) => setStaffAccounts(setStaffAccountStatus(account.id, status))} />}
 
           {activeSection === "orders" && <section className="ordersSurface">
             {visibleOrders.length === 0 ? (
@@ -502,12 +525,14 @@ export function AdminPage() {
                         </td>
                         <td>
                           <div className="actionRow">
-                            <button type="button" onClick={() => openOrder(order)} disabled={adminUser.role === "viewer"}>
+                            <button type="button" onClick={() => openOrder(order)} disabled={["Completed", "Cancelled"].includes(order.status) || (adminUser.role === "operator" && Boolean(order.assignedStaffId && order.assignedStaffId !== adminUser.staffId))}>
                               <Lock size={15} />
                               Open Order
                             </button>
-                            <a className="miniLink" href={`/chat/${order.id}?admin=1&staffId=${encodeURIComponent(adminUser.staffId)}&staffName=${encodeURIComponent(adminUser.label)}`}>Chat</a>
-                            <button
+                            {(adminUser.role !== "operator" || canWorkOrder(order)) && (
+                              <a className="miniLink" href={`/chat/${order.id}?admin=1&staffId=${encodeURIComponent(adminUser.staffId)}&staffName=${encodeURIComponent(adminUser.label)}&role=${adminUser.role}`}>Chat</a>
+                            )}
+                            {canWorkOrder(order) && <button
                               type="button"
                               onClick={() =>
                                 order.paymentScreenshot && isImageData(order.paymentScreenshot)
@@ -518,19 +543,19 @@ export function AdminPage() {
                             >
                               <Eye size={15} />
                               View Customer Proof
-                            </button>
-                            {permissions.canUploadProof && (
+                            </button>}
+                            {permissions.canUploadProof && canWorkOrder(order) && (
                               <label className="miniUpload">
                                 Upload proof
                                 <input type="file" accept="image/*" onChange={(event) => uploadAdminProof(order, event.target.files?.[0])} />
                               </label>
                             )}
-                            {permissions.canComplete && (
+                            {permissions.canComplete && canWorkOrder(order) && (
                               <button type="button" onClick={() => completeOrder(order)}>
                                 Complete
                               </button>
                             )}
-                            {permissions.canChangeStatus ? (
+                            {permissions.canChangeStatus && canWorkOrder(order) ? (
                               <select className="statusSelect" value={order.status} onChange={(event) => changeStatus(order.id, event.target.value as OrderStatus)}>
                                 <option value={order.status}>Status: {order.status}</option>
                                 {statusFlow[order.mode].filter((status) => status !== order.status).map((status) => (
@@ -549,7 +574,7 @@ export function AdminPage() {
               </div>
             )}
           </section>}
-          {activeSection === "logs" && <section className="activityLogPanel">
+          {activeSection === "logs" && adminUser.role === "owner" && <section className="activityLogPanel">
             <div className="settingsHead">
               <div>
                 <h2>Admin Activity Log</h2>
@@ -565,11 +590,11 @@ export function AdminPage() {
                   <article className="activityLogItem" key={log.id}>
                     <div>
                       <strong>{log.staffId}</strong>
-                      <span>{log.staffName} · {log.role}</span>
+                      <span>{log.staffName} - {log.role}</span>
                     </div>
                     <p>{log.action}</p>
                     {log.detail && <small>{log.detail}</small>}
-                    <span>{log.orderId || "System"} · {new Date(log.at).toLocaleString("en-IN")}</span>
+                    <span>{log.orderId || "System"} - {new Date(log.at).toLocaleString("en-IN")}</span>
                   </article>
                 ))}
               </div>
@@ -644,6 +669,7 @@ function SectionBack({ activeSection, onBack }: { activeSection: AdminSection; o
     settings: "Rates & Payment",
     wallets: "Wallet Desk",
     reviews: "Reviews",
+    staff: "Staff Management",
     logs: "Activity Log"
   };
 
@@ -826,6 +852,121 @@ function AdminReviewsSection({
   );
 }
 
+function StaffManagementSection({
+  accounts,
+  onSave,
+  onStatus
+}: {
+  accounts: AdminStaffAccount[];
+  onSave: (account: Omit<AdminStaffAccount, "id" | "staffId" | "createdAt" | "updatedAt">) => void;
+  onStatus: (account: AdminStaffAccount, status: AdminStaffAccount["status"]) => void;
+}) {
+  const [draft, setDraft] = useState<Omit<AdminStaffAccount, "id" | "staffId" | "createdAt" | "updatedAt">>({
+    role: "operator",
+    fullName: "",
+    username: "",
+    password: "",
+    email: "",
+    mobile: "",
+    aadhaar: "",
+    pan: "",
+    accountNumber: "",
+    ifsc: "",
+    bankName: "",
+    upiId: "",
+    walletAddress: "",
+    status: "active"
+  });
+
+  function setField<K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) {
+    setDraft({ ...draft, [key]: value });
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!draft.fullName.trim() || !draft.username.trim() || !draft.password.trim()) return;
+    onSave({
+      ...draft,
+      username: draft.username.trim().toLowerCase(),
+      email: draft.email.trim(),
+      mobile: draft.mobile.trim(),
+      aadhaar: draft.aadhaar.trim(),
+      pan: draft.pan.trim().toUpperCase(),
+      accountNumber: draft.accountNumber.trim(),
+      ifsc: draft.ifsc.trim().toUpperCase(),
+      bankName: draft.bankName.trim(),
+      upiId: draft.upiId.trim(),
+      walletAddress: draft.walletAddress?.trim()
+    });
+    setDraft({ ...draft, fullName: "", username: "", password: "", email: "", mobile: "", aadhaar: "", pan: "", accountNumber: "", ifsc: "", bankName: "", upiId: "", walletAddress: "" });
+  }
+
+  return (
+    <section className="staffPanel">
+      <div className="settingsHead">
+        <div>
+          <h2>Staff Management</h2>
+          <p>Create manager and staff accounts. Wallet address is optional.</p>
+        </div>
+        <UserPlus size={28} />
+      </div>
+
+      <div className="staffManagementGrid">
+        <form className="staffForm" onSubmit={submit}>
+          <label>
+            Role
+            <select value={draft.role} onChange={(event) => setField("role", event.target.value as AdminRole)}>
+              <option value="operator">Staff</option>
+              <option value="manager">Manager</option>
+            </select>
+          </label>
+          <label>Full name<input value={draft.fullName} onChange={(event) => setField("fullName", event.target.value)} required /></label>
+          <label>Username<input value={draft.username} onChange={(event) => setField("username", event.target.value)} required /></label>
+          <label>Password<input value={draft.password} onChange={(event) => setField("password", event.target.value)} required /></label>
+          <label>Email<input value={draft.email} onChange={(event) => setField("email", event.target.value)} /></label>
+          <label>Mobile<input value={draft.mobile} onChange={(event) => setField("mobile", event.target.value)} /></label>
+          <label>Aadhaar number<input value={draft.aadhaar} onChange={(event) => setField("aadhaar", event.target.value)} /></label>
+          <label>PAN number<input value={draft.pan} onChange={(event) => setField("pan", event.target.value.toUpperCase())} /></label>
+          <label>Account number<input value={draft.accountNumber} onChange={(event) => setField("accountNumber", event.target.value)} /></label>
+          <label>IFSC<input value={draft.ifsc} onChange={(event) => setField("ifsc", event.target.value.toUpperCase())} /></label>
+          <label>Bank name<input value={draft.bankName} onChange={(event) => setField("bankName", event.target.value)} /></label>
+          <label>UPI ID<input value={draft.upiId} onChange={(event) => setField("upiId", event.target.value)} /></label>
+          <label className="wide">Wallet address, if any<input value={draft.walletAddress} onChange={(event) => setField("walletAddress", event.target.value)} /></label>
+          <button className="primaryButton wide" type="submit">Create Account</button>
+        </form>
+
+        <div className="staffCards">
+          {accounts.map((account) => (
+            <article className="staffCard" key={account.id}>
+              <div>
+                <strong>{account.fullName}</strong>
+                <span>{account.staffId} - {account.role === "operator" ? "staff" : account.role}</span>
+              </div>
+              <div className="staffMetaGrid">
+                <span>Email <strong>{maskEmail(account.email)}</strong></span>
+                <span>Mobile <strong>{maskMobile(account.mobile)}</strong></span>
+                <span>Aadhaar <strong>{maskAddress(account.aadhaar)}</strong></span>
+                <span>PAN <strong>{maskAddress(account.pan)}</strong></span>
+                <span>Account <strong>{maskAddress(account.accountNumber)}</strong></span>
+                <span>UPI <strong>{account.upiId || "Not added"}</strong></span>
+                <span>Wallet <strong>{maskAddress(account.walletAddress || "")}</strong></span>
+                <span>Status <strong>{account.status}</strong></span>
+              </div>
+              {account.role !== "owner" && (
+                <div className="actionRow">
+                  <button type="button" onClick={() => onStatus(account, account.status === "active" ? "inactive" : "active")}>
+                    {account.status === "active" ? "Deactivate" : "Activate"}
+                  </button>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CustomerUsersSection({
   onCopyMobile,
   orders,
@@ -889,7 +1030,7 @@ function CustomerUsersSection({
                   <span>{row.user.mobile}</span>
                   {row.user.email && <span>{row.user.email}</span>}
                 </div>
-                <span className="roleBadge viewer">{row.user.id}</span>
+                <span className="roleBadge customerId">{row.user.id}</span>
               </div>
               <div className="userStats">
                 <span>Orders <strong>{row.orders}</strong></span>
