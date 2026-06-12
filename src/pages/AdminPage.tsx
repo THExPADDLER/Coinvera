@@ -15,6 +15,7 @@ import { syncFirebaseToLocal } from "../lib/remoteStore";
 import { deleteReview, loadReviews, saveReview, type CustomerReview } from "../lib/reviews";
 import { maskAddress, maskEmail, maskMobile } from "../lib/mask";
 import { loadStaffAccounts, setStaffAccountStatus, upsertStaffAccount } from "../lib/adminStaff";
+import { clearAdminSession, loadAdminSession, saveAdminSession } from "../lib/adminSession";
 
 interface AdminUser {
   username: string;
@@ -80,6 +81,10 @@ export function AdminPage() {
   );
 
   useEffect(() => {
+    const savedAdmin = loadAdminSession();
+    if (savedAdmin) {
+      setAdminUser({ username: savedAdmin.username, role: savedAdmin.role, label: savedAdmin.label, staffId: savedAdmin.staffId });
+    }
     setOrders(loadOrders());
     setUsers(loadCustomerUsers());
     setLogs(loadActivityLogs());
@@ -131,6 +136,7 @@ export function AdminPage() {
       return;
     }
     setAdminUser({ username: found.username, role: found.role, label: found.fullName || found.role, staffId: found.staffId });
+    saveAdminSession({ username: found.username, role: found.role, label: found.fullName || found.role, staffId: found.staffId });
     setLogs(addActivityLog({ staffId: found.staffId, staffName: found.fullName || found.role, role: found.role, action: "Signed in to admin panel" }));
     setUsername("");
     setPassword("");
@@ -447,7 +453,7 @@ export function AdminPage() {
                   </button>
                 </div>
               )}
-              <button className="softButton dark" type="button" onClick={() => setAdminUser(null)}>
+              <button className="softButton dark" type="button" onClick={() => { clearAdminSession(); setAdminUser(null); }}>
                 <LogOut size={16} />
                 Lock
               </button>

@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { StatusPill } from "../components/StatusPill";
+import { loadAdminSession } from "../lib/adminSession";
 import { loadCustomerSession } from "../lib/auth";
 import { addActivityLog, addOrderMessage, loadOrders, money, usdt } from "../lib/desk";
 import { isImageData } from "../lib/files";
@@ -13,17 +14,19 @@ export function ChatPage() {
   const params = new URLSearchParams(window.location.search);
   const isAdminView = params.get("admin") === "1";
   const session = loadCustomerSession();
+  const adminSession = isAdminView ? loadAdminSession() : null;
   const [orders, setOrders] = useState<DeskOrder[]>([]);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   const [text, setText] = useState("");
   const [tick, setTick] = useState(Date.now());
   const order = useMemo(() => orders.find((item) => item.id === orderId), [orders, orderId]);
-  const staffId = params.get("staffId") || order?.assignedStaffId || "CV-STAFF";
-  const staffName = params.get("staffName") || order?.assignedStaffName || "Coinvera Staff";
-  const staffRole = (params.get("role") || order?.assignedStaffRole || "operator") as AdminRole;
+  const staffId = adminSession?.staffId || params.get("staffId") || order?.assignedStaffId || "CV-STAFF";
+  const staffName = adminSession?.label || params.get("staffName") || order?.assignedStaffName || "Coinvera Staff";
+  const staffRole = (adminSession?.role || params.get("role") || order?.assignedStaffRole || "operator") as AdminRole;
   const chatClosed = Boolean(order && ["Completed", "Cancelled"].includes(order.status));
+  const customerBlocked = Boolean(order && !isAdminView && (!session || (order.customerMobile || order.phone) !== session.mobile));
   const adminBlocked =
-    Boolean(order && isAdminView && staffRole === "operator" && (chatClosed || order.assignedStaffId !== staffId));
+    Boolean(order && isAdminView && (!adminSession || (staffRole === "operator" && (chatClosed || order.assignedStaffId !== staffId))));
   const visibleMessages = useMemo(
     () => {
       if (!order) return [];
@@ -58,7 +61,7 @@ export function ChatPage() {
 
   function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!order || chatClosed || adminBlocked || !text.trim()) return;
+    if (!order || chatClosed || adminBlocked || customerBlocked || !text.trim()) return;
     setOrders(addOrderMessage(order.id, { sender: isAdminView ? "admin" : "customer", text: text.trim(), staffId: isAdminView ? staffId : undefined, staffName: isAdminView ? staffName : undefined }));
     if (isAdminView) {
       addActivityLog({ staffId, staffName, role: order.assignedStaffRole || "operator", action: "Sent chat message", orderId: order.id });
@@ -103,6 +106,20 @@ export function ChatPage() {
           <h2>Chat locked</h2>
           <p>This order is closed or assigned to another staff member.</p>
           <a className="primaryButton" href="/control-room">Back to Admin</a>
+        </section>
+      </main>
+    );
+  }
+
+  if (customerBlocked) {
+    return (
+      <main className="flowShell">
+        <ChatNav />
+        <section className="lockedPanel">
+          <LockKeyhole size={36} />
+          <h2>Access denied</h2>
+          <p>This order does not belong to your Coinvera account.</p>
+          <a className="primaryButton" href="/orders">My Orders</a>
         </section>
       </main>
     );
