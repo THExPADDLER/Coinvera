@@ -4,6 +4,7 @@ import { AuthPanel } from "../components/AuthPanel";
 import { Brand } from "../components/Brand";
 import { MarketDashboard } from "../components/MarketDashboard";
 import { loadCustomerSession, logoutCustomer } from "../lib/auth";
+import { loadDeskSettings } from "../lib/desk";
 import { getCustomerWalletBalance, loadWalletLedger } from "../lib/wallet";
 import type { KycSession } from "../lib/kyc";
 
@@ -11,6 +12,7 @@ export function CustomerPage() {
   const [session, setSession] = useState<KycSession | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [settings, setSettings] = useState(() => loadDeskSettings());
   const [, setWalletTick] = useState(0);
   const balance = session ? getCustomerWalletBalance(session.mobile) : null;
 
@@ -18,6 +20,7 @@ export function CustomerPage() {
     setSession(loadCustomerSession());
     const sync = () => {
       setSession(loadCustomerSession());
+      setSettings(loadDeskSettings());
       loadWalletLedger();
       setWalletTick((value) => value + 1);
     };
@@ -109,7 +112,7 @@ export function CustomerPage() {
           </div>
           <div className="wide trustCallout">
             <Clock3 size={20} />
-            <span>Minimum 50 USDT. Daily limit 2000 USDT. Clean orders targeted within 30 minutes.</span>
+            <span>Minimum {settings.limits.buyMin} USDT. Daily limit {Math.max(settings.limits.buyMax, settings.limits.sellMax)} USDT. Clean orders targeted within 30 minutes.</span>
           </div>
         </div>
       </section>
