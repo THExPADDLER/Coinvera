@@ -2,40 +2,63 @@ import type { AdminRole, AdminStaffAccount } from "./types";
 
 export const staffAccountsStorageKey = "coinvera-admin-staff-accounts";
 
-export const defaultOwnerAccount: AdminStaffAccount = {
-  id: "owner-default",
-  staffId: "CV-OWNER-001",
-  role: "owner",
-  fullName: "Owner",
-  username: "owner",
-  password: "1234",
-  email: "",
-  mobile: "",
-  aadhaar: "",
-  pan: "",
-  accountNumber: "",
-  ifsc: "",
-  bankName: "",
-  upiId: "",
-  walletAddress: "",
-  status: "active",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  updatedAt: "2026-01-01T00:00:00.000Z"
-};
+export const defaultOwnerAccounts: AdminStaffAccount[] = [
+  {
+    id: "owner-primary",
+    staffId: "CV-OWNER-001",
+    role: "owner",
+    fullName: "Owner 1",
+    username: "Hey_paddie!",
+    password: "Heypaddie@6969#$$",
+    email: "",
+    mobile: "",
+    aadhaar: "",
+    pan: "",
+    accountNumber: "",
+    ifsc: "",
+    bankName: "",
+    upiId: "",
+    walletAddress: "",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  {
+    id: "owner-secondary",
+    staffId: "CV-OWNER-002",
+    role: "owner",
+    fullName: "Owner 2",
+    username: "Jaysawariyasethji",
+    password: "Jaysawariyasethji@100#$$",
+    email: "",
+    mobile: "",
+    aadhaar: "",
+    pan: "",
+    accountNumber: "",
+    ifsc: "",
+    bankName: "",
+    upiId: "",
+    walletAddress: "",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  }
+];
 
 export function loadStaffAccounts(): AdminStaffAccount[] {
   try {
     const stored = JSON.parse(localStorage.getItem(staffAccountsStorageKey) || "[]") as AdminStaffAccount[];
     const byUsername = new Map<string, AdminStaffAccount>();
-    [...stored, defaultOwnerAccount].forEach((account) => byUsername.set(account.username.toLowerCase(), account));
+    [...stored, ...defaultOwnerAccounts].forEach((account) => byUsername.set(account.username.toLowerCase(), account));
     return Array.from(byUsername.values());
   } catch {
-    return [defaultOwnerAccount];
+    return defaultOwnerAccounts;
   }
 }
 
 export function saveStaffAccounts(accounts: AdminStaffAccount[]): AdminStaffAccount[] {
-  const withoutDefaultOwner = accounts.filter((account) => account.id !== defaultOwnerAccount.id);
+  const defaultOwnerIds = new Set(defaultOwnerAccounts.map((account) => account.id));
+  const withoutDefaultOwner = accounts.filter((account) => !defaultOwnerIds.has(account.id));
   localStorage.setItem(staffAccountsStorageKey, JSON.stringify(withoutDefaultOwner));
   window.dispatchEvent(new Event("coinvera-staff-accounts-updated"));
   return loadStaffAccounts();
