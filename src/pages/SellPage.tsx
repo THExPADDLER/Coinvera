@@ -4,7 +4,7 @@ import { Brand } from "../components/Brand";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
-import { createOrder, loadDeskSettings, loadOrders, money, usdt } from "../lib/desk";
+import { calculatePlatformFee, createOrder, loadDeskSettings, loadOrders, money, usdt } from "../lib/desk";
 import { imageFileToCompressedDataUrl, imageSizeLabel } from "../lib/files";
 import { loadCustomerPreferences, savePayoutMethod } from "../lib/preferences";
 import { dailyTradeRemaining, dailyTradeUsed, tradeLimitCheck } from "../lib/tradeLimits";
@@ -36,7 +36,8 @@ export function SellPage() {
   const [uploadingProof, setUploadingProof] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [toast, setToast] = useState("");
-  const total = useMemo(() => Number(amount || 0) * settings.rates.sell, [amount, settings.rates.sell]);
+  const feeQuote = useMemo(() => calculatePlatformFee("sell", Number(amount || 0), settings.rates.sell, settings), [amount, settings]);
+  const total = feeQuote.netInr;
   const preferences = session ? loadCustomerPreferences(session.mobile) : null;
   const savedPayouts = preferences?.payoutMethods.filter((item) => item.type === payoutMode) || [];
   const balance = session ? getCustomerWalletBalance(session.mobile) : { available: 0, pending: 0, locked: 0 };
@@ -120,6 +121,9 @@ export function SellPage() {
       customerAuthUid: customer.authUid,
       amount: sellAmount,
       rate: settings.rates.sell,
+      grossInr: feeQuote.grossInr,
+      platformFeeInr: feeQuote.platformFeeInr,
+      netInr: feeQuote.netInr,
       network: "Coinvera verified wallet",
       wallet: "USDT debited from verified Coinvera wallet balance",
       payment: payoutDetailsText(),
@@ -183,6 +187,9 @@ export function SellPage() {
       customerAuthUid: customer.authUid,
       amount: Number(amount),
       rate: settings.rates.sell,
+      grossInr: feeQuote.grossInr,
+      platformFeeInr: feeQuote.platformFeeInr,
+      netInr: feeQuote.netInr,
       network: selectedChain?.name || network,
       wallet: selectedChain?.wallet || "",
       payment: payoutDetailsText(),
@@ -230,7 +237,7 @@ export function SellPage() {
 
           {sellMode === "wallet" ? (
             <form className="tradeForm" onSubmit={submitWalletSell}>
-              <SellAmountFields amount={amount} dailyRemaining={dailyRemaining} limitMax={settings.limits.sellMax} limitMin={settings.limits.sellMin} max={maxWalletSellAmount || undefined} onAmount={setAmount} rate={settings.rates.sell} total={total} />
+              <SellAmountFields amount={amount} dailyRemaining={dailyRemaining} fee={feeQuote.platformFeeInr} gross={feeQuote.grossInr} limitMax={settings.limits.sellMax} limitMin={settings.limits.sellMin} max={maxWalletSellAmount || undefined} onAmount={setAmount} rate={settings.rates.sell} showFee={settings.fees.showSeparately} total={total} />
               <PayoutFields
                 accountNumber={accountNumber}
                 bankName={bankName}
@@ -254,7 +261,7 @@ export function SellPage() {
             </form>
           ) : directStage === "form" ? (
             <form className="tradeForm" onSubmit={continueToDirectDeposit}>
-              <SellAmountFields amount={amount} dailyRemaining={dailyRemaining} limitMax={settings.limits.sellMax} limitMin={settings.limits.sellMin} onAmount={setAmount} rate={settings.rates.sell} total={total} />
+              <SellAmountFields amount={amount} dailyRemaining={dailyRemaining} fee={feeQuote.platformFeeInr} gross={feeQuote.grossInr} limitMax={settings.limits.sellMax} limitMin={settings.limits.sellMin} onAmount={setAmount} rate={settings.rates.sell} showFee={settings.fees.showSeparately} total={total} />
               <label className="wide">
                 Blockchain network
                 <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
@@ -354,7 +361,7 @@ export function SellPage() {
   );
 }
 
-function SellAmountFields({ amount, dailyRemaining, limitMax, limitMin, max, onAmount, rate, total }: { amount: string; dailyRemaining: number; limitMax: number; limitMin: number; max?: number; onAmount: (value: string) => void; rate: number; total: number }) {
+function SellAmountFields({ amount, dailyRemaining, fee, gross, limitMax, limitMin, max, onAmount, rate, showFee, total }: { amount: string; dailyRemaining: number; fee: number; gross: number; limitMax: number; limitMin: number; max?: number; onAmount: (value: string) => void; rate: number; showFee: boolean; total: number }) {
   return (
     <>
       <label>
@@ -373,11 +380,16 @@ function SellAmountFields({ amount, dailyRemaining, limitMax, limitMin, max, onA
           <span>Estimated INR</span>
           <strong>{money(total)}</strong>
         </div>
-        <div>
-          <span>Formula</span>
-          <strong>{Number(amount || 0)} * {rate}</strong>
-        </div>
+        {showFee ? (
+          <div>
+            <span>Platform fee</span>
+            <strong>{money(fee)}</strong>
+          </div>
+        ) : null}
       </div>
+      {showFee && <div className="limitNote wide">
+        Gross INR {money(gross)} - platform fee {money(fee)} = payout {money(total)}.
+      </div>}
     </>
   );
 }

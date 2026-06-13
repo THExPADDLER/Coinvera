@@ -48,6 +48,9 @@ export interface DeskOrder {
   amount: number;
   rate: number;
   inr: number;
+  grossInr?: number;
+  platformFeeInr?: number;
+  netInr?: number;
   network: Network;
   wallet: string;
   payment: string;
@@ -219,6 +222,14 @@ export interface TradeQuantityLimits {
   sellMax: number;
 }
 
+export interface PlatformFees {
+  buyPercent: number;
+  sellPercent: number;
+  buyMinInr: number;
+  sellMinInr: number;
+  showSeparately: boolean;
+}
+
 export interface PaymentDetails {
   holderName: string;
   upiId: string;
@@ -256,6 +267,7 @@ export interface DeskSettings {
   limitPolicyVersion?: number;
   rates: DeskRates;
   limits: TradeQuantityLimits;
+  fees: PlatformFees;
   payment: PaymentDetails;
   blockchains: BlockchainDeposit[];
   accountTransfers: BankAccountOption[];

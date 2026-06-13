@@ -540,6 +540,7 @@ export function AdminPage() {
                           <StatusPill label={order.mode === "buy" ? "Buy USDT" : "Sell USDT"} mode={order.mode} />
                           <span>{usdt(order.amount)} at {money(order.rate)}</span>
                           <strong>{money(order.inr)}</strong>
+                          {order.platformFeeInr ? <span>Fee: {money(order.platformFeeInr)} | Gross: {money(order.grossInr || order.amount * order.rate)}</span> : null}
                         </td>
                         <td>
                           <strong>{order.network}</strong>
@@ -733,6 +734,10 @@ function describeSettingsChanges(previous: DeskSettings, next: DeskSettings): st
   addChange("Buy daily maximum quantity", usdt(previous.limits.buyMax), usdt(next.limits.buyMax));
   addChange("Sell minimum quantity", usdt(previous.limits.sellMin), usdt(next.limits.sellMin));
   addChange("Sell daily maximum quantity", usdt(previous.limits.sellMax), usdt(next.limits.sellMax));
+  addChange("Buy platform fee", `${previous.fees.buyPercent}%`, `${next.fees.buyPercent}%`);
+  addChange("Sell platform fee", `${previous.fees.sellPercent}%`, `${next.fees.sellPercent}%`);
+  addChange("Minimum buy platform fee", money(previous.fees.buyMinInr), money(next.fees.buyMinInr));
+  addChange("Minimum sell platform fee", money(previous.fees.sellMinInr), money(next.fees.sellMinInr));
   addChange("UPI holder name", previous.payment.holderName, next.payment.holderName);
   addChange("UPI ID", previous.payment.upiId, next.payment.upiId);
   addImageChange("UPI QR barcode", previous.payment.upiQr, next.payment.upiQr);
@@ -1261,6 +1266,10 @@ function AdminSettings({
     setDraft({ ...draft, limits: { ...draft.limits, [key]: Number(value) } });
   }
 
+  function setFee(key: keyof DeskSettings["fees"], value: string | boolean) {
+    setDraft({ ...draft, fees: { ...draft.fees, [key]: typeof value === "boolean" ? value : Number(value) } });
+  }
+
   function setPayment(key: keyof DeskSettings["payment"], value: string) {
     setDraft({ ...draft, payment: { ...draft.payment, [key]: value } });
   }
@@ -1360,6 +1369,26 @@ function AdminSettings({
         <label>
           Sell daily max USDT
           <input type="number" min="0" step="0.01" value={draft.limits.sellMax} onChange={(event) => setLimit("sellMax", event.target.value)} />
+        </label>
+        <label>
+          Buy fee %
+          <input type="number" min="0" step="0.01" value={draft.fees.buyPercent} onChange={(event) => setFee("buyPercent", event.target.value)} />
+        </label>
+        <label>
+          Buy minimum fee INR
+          <input type="number" min="0" step="1" value={draft.fees.buyMinInr} onChange={(event) => setFee("buyMinInr", event.target.value)} />
+        </label>
+        <label>
+          Sell fee %
+          <input type="number" min="0" step="0.01" value={draft.fees.sellPercent} onChange={(event) => setFee("sellPercent", event.target.value)} />
+        </label>
+        <label>
+          Sell minimum fee INR
+          <input type="number" min="0" step="1" value={draft.fees.sellMinInr} onChange={(event) => setFee("sellMinInr", event.target.value)} />
+        </label>
+        <label className="checkLine wide">
+          <input checked={draft.fees.showSeparately} onChange={(event) => setFee("showSeparately", event.target.checked)} type="checkbox" />
+          Show platform fee separately to customers
         </label>
         <label>
           UPI holder name

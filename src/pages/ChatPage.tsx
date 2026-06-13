@@ -145,6 +145,7 @@ export function ChatPage() {
           <div className="summaryRows">
             <span>{order.mode === "buy" ? "Buy" : "Sell"} {usdt(order.amount)}</span>
             <strong>{money(order.inr)}</strong>
+            {order.platformFeeInr ? <span>Platform fee: {money(order.platformFeeInr)}</span> : null}
             <span>Network: {order.network}</span>
             <span>Ref: {order.paymentReference || "Pending"}</span>
           </div>

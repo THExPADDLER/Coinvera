@@ -62,6 +62,7 @@ export function OrdersPage() {
                 <StatusPill label={order.status} mode={order.mode} />
                 <p>{order.mode === "buy" ? "Buy" : "Sell"} {usdt(order.amount)} at {money(order.rate)}</p>
                 <h3>{money(order.inr)}</h3>
+                {order.platformFeeInr ? <small>Platform fee: {money(order.platformFeeInr)}</small> : null}
                 <small>{order.paymentMethod ? `${order.paymentMethod.toUpperCase()} ref: ${order.paymentReference || "Pending"}` : order.payment}</small>
               </a>
             ))

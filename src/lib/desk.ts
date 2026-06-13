@@ -56,6 +56,13 @@ export const defaultSettings: DeskSettings = {
     sellMin: 50,
     sellMax: 5000
   },
+  fees: {
+    buyPercent: 0.5,
+    sellPercent: 0.5,
+    buyMinInr: 50,
+    sellMinInr: 50,
+    showSeparately: true
+  },
   payment: {
     holderName: "Coinvera Exchange Desk",
     upiId: "coinvera@upi",
@@ -163,6 +170,7 @@ export function loadDeskSettings(): DeskSettings {
       limitPolicyVersion: defaultSettings.limitPolicyVersion,
       rates: { ...defaultSettings.rates, ...stored.rates },
       limits,
+      fees: { ...defaultSettings.fees, ...stored.fees },
       payment: storedPayment,
       blockchains,
       accountTransfers,
@@ -251,12 +259,18 @@ export function addActivityLog(input: Omit<AdminActivityLog, "id" | "at">): Admi
 export function createOrder(input: Omit<DeskOrder, "id" | "createdAt" | "inr" | "status"> & { status?: OrderStatus }): DeskOrder {
   const createdAt = new Date();
   const proofText = input.paymentScreenshot ? "Customer payment proof uploaded." : "Order created.";
+  const grossInr = input.grossInr ?? input.amount * input.rate;
+  const platformFeeInr = input.platformFeeInr ?? 0;
+  const netInr = input.netInr ?? (input.mode === "buy" ? grossInr + platformFeeInr : Math.max(0, grossInr - platformFeeInr));
   const order: DeskOrder = {
     ...input,
     id: `ORD-${Date.now().toString().slice(-7)}`,
     createdAt: createdAt.toISOString(),
     expiresAt: new Date(createdAt.getTime() + orderTtlMs).toISOString(),
-    inr: input.amount * input.rate,
+    grossInr,
+    platformFeeInr,
+    netInr,
+    inr: netInr,
     status: input.status ?? (input.mode === "buy" ? "Awaiting Payment" : "Awaiting USDT"),
     customerConfirmed: false,
     adminConfirmed: false,
@@ -273,6 +287,15 @@ export function createOrder(input: Omit<DeskOrder, "id" | "createdAt" | "inr" | 
 
   saveOrders([order, ...loadOrders()]);
   return order;
+}
+
+export function calculatePlatformFee(mode: TradeMode, amount: number, rate: number, settings: DeskSettings) {
+  const grossInr = Number(amount || 0) * Number(rate || 0);
+  const percent = mode === "buy" ? settings.fees.buyPercent : settings.fees.sellPercent;
+  const minimum = mode === "buy" ? settings.fees.buyMinInr : settings.fees.sellMinInr;
+  const platformFeeInr = grossInr > 0 ? Math.max(minimum || 0, grossInr * ((percent || 0) / 100)) : 0;
+  const netInr = mode === "buy" ? grossInr + platformFeeInr : Math.max(0, grossInr - platformFeeInr);
+  return { grossInr, platformFeeInr, netInr };
 }
 
 function normalizeOrders(orders: DeskOrder[]): DeskOrder[] {
@@ -315,7 +338,7 @@ export function usdt(value: number): string {
 }
 
 export function toCsv(orders: DeskOrder[]): string {
-  const header = ["id", "createdAt", "expiresAt", "type", "name", "phone", "amountUSDT", "rateINR", "totalINR", "network", "walletOrTx", "payment", "paymentMethod", "paymentReference", "paymentScreenshot", "adminProof", "assignedStaffId", "assignedStaffName", "customerConfirmed", "adminConfirmed", "kyc", "status"];
+  const header = ["id", "createdAt", "expiresAt", "type", "name", "phone", "amountUSDT", "rateINR", "grossINR", "platformFeeINR", "netINR", "network", "walletOrTx", "payment", "paymentMethod", "paymentReference", "paymentScreenshot", "adminProof", "assignedStaffId", "assignedStaffName", "customerConfirmed", "adminConfirmed", "kyc", "status"];
   const rows = orders.map((order) => {
     const values: Record<string, string | number> = {
       id: order.id,
@@ -326,7 +349,9 @@ export function toCsv(orders: DeskOrder[]): string {
       phone: order.phone,
       amountUSDT: order.amount,
       rateINR: order.rate,
-      totalINR: order.inr,
+      grossINR: order.grossInr || order.amount * order.rate,
+      platformFeeINR: order.platformFeeInr || 0,
+      netINR: order.inr,
       network: order.network,
       walletOrTx: order.wallet,
       payment: order.payment,

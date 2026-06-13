@@ -4,7 +4,7 @@ import { Brand } from "../components/Brand";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
 import { loadCustomerSession } from "../lib/auth";
-import { createOrder, loadDeskSettings, loadOrders, money } from "../lib/desk";
+import { calculatePlatformFee, createOrder, loadDeskSettings, loadOrders, money } from "../lib/desk";
 import { imageFileToCompressedDataUrl, imageSizeLabel } from "../lib/files";
 import { loadCustomerPreferences, saveReceivingWallet } from "../lib/preferences";
 import { dailyTradeRemaining, dailyTradeUsed, tradeLimitCheck } from "../lib/tradeLimits";
@@ -31,7 +31,8 @@ export function BuyPage() {
   const [uploadingProof, setUploadingProof] = useState(false);
   const [previewQr, setPreviewQr] = useState<string | null>(null);
   const [toast, setToast] = useState("");
-  const total = useMemo(() => Number(amount || 0) * settings.rates.buy, [amount, settings.rates.buy]);
+  const feeQuote = useMemo(() => calculatePlatformFee("buy", Number(amount || 0), settings.rates.buy, settings), [amount, settings]);
+  const total = feeQuote.netInr;
   const dailyUsed = session ? dailyTradeUsed(loadOrders(), session.mobile, "buy") : 0;
   const dailyRemaining = session ? dailyTradeRemaining(loadOrders(), session.mobile, "buy", settings) : settings.limits.buyMax;
   const limitError = tradeLimitCheck({ amount: Number(amount || 0), dailyUsed, mode: "buy", settings });
@@ -58,6 +59,9 @@ export function BuyPage() {
       customerAuthUid: session.authUid,
       amount: Number(amount),
       rate: settings.rates.buy,
+      grossInr: feeQuote.grossInr,
+      platformFeeInr: feeQuote.platformFeeInr,
+      netInr: feeQuote.netInr,
       network: deliveryMode === "wallet" ? "Coinvera Wallet" : network,
       wallet: deliveryMode === "wallet" ? "Credit to Coinvera wallet balance" : wallet,
       payment: `${method.toUpperCase()} payment submitted${method === "account" && selectedAccount ? ` to ${selectedAccount.label}` : ""}${method === "cdm" && selectedCdm ? ` to ${selectedCdm.label}` : ""}`,
@@ -157,11 +161,12 @@ export function BuyPage() {
               Save this USDT address for easy future withdrawal
             </label>}
             <div className="buyEstimateCard wide">
-              <span>Approx amount payable</span>
+              <span>Final amount payable</span>
               <strong>{money(total)}</strong>
               <div>
                 <small>Rate {money(settings.rates.buy)} / USDT</small>
-                <small>{Number(amount || 0)} USDT * {settings.rates.buy}</small>
+                {settings.fees.showSeparately && <small>USDT value {money(feeQuote.grossInr)}</small>}
+                {settings.fees.showSeparately && <small>Platform fee {money(feeQuote.platformFeeInr)}</small>}
               </div>
             </div>
             <button className="primaryButton wide" type="button" disabled={!Number(amount) || Boolean(limitError) || (deliveryMode === "external" && !wallet)} onClick={() => setMethod("upi")}>

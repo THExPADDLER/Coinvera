@@ -48,7 +48,8 @@ export function downloadAdminReportPdf(input: ReportInput) {
       input.withdrawals.filter((withdrawal) => withdrawal.status === "Completed").reduce((sum, withdrawal) => sum + withdrawal.amount, 0) +
       input.orders.filter((order) => order.mode === "buy" && ["USDT Released", "Completed"].includes(order.status)).reduce((sum, order) => sum + order.amount, 0),
     inrReceived: input.orders.filter((order) => order.mode === "buy" && order.status !== "Cancelled").reduce((sum, order) => sum + order.inr, 0),
-    inrSent: input.orders.filter((order) => order.mode === "sell" && order.status !== "Cancelled").reduce((sum, order) => sum + order.inr, 0)
+    inrSent: input.orders.filter((order) => order.mode === "sell" && order.status !== "Cancelled").reduce((sum, order) => sum + order.inr, 0),
+    platformFees: input.orders.filter((order) => order.status !== "Cancelled").reduce((sum, order) => sum + (order.platformFeeInr || 0), 0)
   };
   const exposure = buildExposure(input);
   const estimatedProfit = totals.inrReceived - totals.inrSent;
@@ -64,9 +65,9 @@ export function downloadAdminReportPdf(input: ReportInput) {
   ]);
   y = drawKpis(doc, y + 2, [
     ["Est. Profit / Net INR", money(estimatedProfit), "Cash inflow minus cash outflow for selected period"],
+    ["Platform Fees", money(totals.platformFees), "Buy fees charged plus sell fees deducted"],
     ["Net USDT Movement", usdt(netUsdt), "USDT received minus sent in selected period"],
-    ["Funds Stuck", `${money(exposure.totalInrStuck)} / ${usdt(exposure.totalUsdtStuck)}`, "Pending, locked, or waiting settlement"],
-    ["Open Exposure", `${input.orders.filter((order) => !["Completed", "Cancelled"].includes(order.status)).length} orders`, "Orders not completed or cancelled yet"]
+    ["Funds Stuck", `${money(exposure.totalInrStuck)} / ${usdt(exposure.totalUsdtStuck)}`, "Pending, locked, or waiting settlement"]
   ]);
 
   y = drawMiniSummary(doc, y + 7, [
@@ -92,11 +93,13 @@ export function downloadAdminReportPdf(input: ReportInput) {
     { header: "Type", width: 16, value: (order) => order.mode.toUpperCase() },
     { header: "Customer", width: 42, value: (order) => customerLabel(customerByMobile, order.customerMobile || order.phone, order.name) },
     { header: "USDT", width: 20, value: (order) => numberText(order.amount) },
-    { header: "Rate", width: 22, value: (order) => money(order.rate) },
-    { header: "INR", width: 26, value: (order) => money(order.inr) },
-    { header: "Status", width: 30, value: (order) => order.status },
-    { header: "Network", width: 34, value: (order) => order.network || "-" },
-    { header: "Staff", width: 31, value: (order) => order.assignedStaffId || "Unassigned" }
+    { header: "Rate", width: 20, value: (order) => money(order.rate) },
+    { header: "Gross INR", width: 24, value: (order) => money(order.grossInr || order.amount * order.rate) },
+    { header: "Fee", width: 20, value: (order) => money(order.platformFeeInr || 0) },
+    { header: "Net INR", width: 24, value: (order) => money(order.inr) },
+    { header: "Status", width: 27, value: (order) => order.status },
+    { header: "Network", width: 30, value: (order) => order.network || "-" },
+    { header: "Staff", width: 26, value: (order) => order.assignedStaffId || "Unassigned" }
   ]);
 
   y = drawTable(doc, y + 4, "Wallet Deposits", input.deposits, [
