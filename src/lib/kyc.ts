@@ -2,12 +2,17 @@ export interface KycSession {
   authUid?: string;
   fullName: string;
   mobile: string;
+  aadhaarNumber?: string;
+  aadhaarHash?: string;
   mobileVerified: boolean;
   aadhaarLast4: string;
   aadhaarVerified: boolean;
   pan: string;
+  panHash?: string;
   panVerified: boolean;
   digilockerVerified: boolean;
+  kycStatus?: "under_review" | "verified" | "rejected" | "duplicate_blocked";
+  riskStatus?: "active" | "under_review" | "limited" | "suspended" | "permanently_banned";
   consentAccepted: boolean;
   completedAt?: string;
 }
@@ -18,12 +23,17 @@ export const demoOtp = "123456";
 export const emptyKycSession: KycSession = {
   fullName: "",
   mobile: "",
+  aadhaarNumber: "",
+  aadhaarHash: "",
   mobileVerified: false,
   aadhaarLast4: "",
   aadhaarVerified: false,
   pan: "",
+  panHash: "",
   panVerified: false,
   digilockerVerified: false,
+  kycStatus: "under_review",
+  riskStatus: "active",
   consentAccepted: false
 };
 

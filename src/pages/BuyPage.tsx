@@ -3,7 +3,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
-import { loadCustomerSession } from "../lib/auth";
+import { canCustomerTransact, customerAccessMessage, loadCustomerSession } from "../lib/auth";
 import { calculatePlatformFee, createOrder, loadDeskSettings, loadOrders, money } from "../lib/desk";
 import { imageFileToCompressedDataUrl, imageSizeLabel } from "../lib/files";
 import { loadCustomerPreferences, saveReceivingWallet } from "../lib/preferences";
@@ -42,6 +42,7 @@ export function BuyPage() {
   const savedWallets = preferences?.receivingWallets.filter((item) => item.network === network) || [];
 
   if (!session) return <RequireLogin title="Login required to buy USDT" />;
+  if (!canCustomerTransact(session)) return <RequireLogin title="Account verification required" message={customerAccessMessage(session)} />;
 
   function submitPayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -294,14 +295,14 @@ function FlowNav() {
   );
 }
 
-function RequireLogin({ title }: { title: string }) {
+function RequireLogin({ message = "Please complete simple Login / Signup from the home page first.", title }: { message?: string; title: string }) {
   return (
     <main className="flowShell">
       <FlowNav />
       <section className="lockedPanel">
         <Wallet size={36} />
         <h2>{title}</h2>
-        <p>Please complete simple Login / Signup from the home page first.</p>
+        <p>{message}</p>
         <a className="primaryButton" href="/">Go to Login</a>
       </section>
     </main>

@@ -3,7 +3,7 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
-import { loadCustomerSession } from "../lib/auth";
+import { canCustomerTransact, customerAccessMessage, loadCustomerSession } from "../lib/auth";
 import { loadDeskSettings, usdt } from "../lib/desk";
 import { createWalletDeposit, createWalletWithdrawal, getCustomerWalletBalance, getWalletDepositHoldUntil, loadWalletDeposits, loadWalletLedger, loadWalletWithdrawals } from "../lib/wallet";
 import type { Network, WalletDeposit, WalletLedgerEntry, WalletWithdrawal } from "../lib/types";
@@ -113,6 +113,19 @@ export function WalletPage() {
           <h2>Login required to use wallet</h2>
           <p>Please login/signup from the home page first.</p>
           <a className="primaryButton" href="/">Go to Login</a>
+        </section>
+      </main>
+    );
+  }
+  if (!canCustomerTransact(session)) {
+    return (
+      <main className="flowShell">
+        <WalletNav />
+        <section className="lockedPanel">
+          <Wallet size={36} />
+          <h2>Account verification required</h2>
+          <p>{customerAccessMessage(session)}</p>
+          <a className="primaryButton" href="/profile">View Profile</a>
         </section>
       </main>
     );

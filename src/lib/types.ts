@@ -16,7 +16,7 @@ export type OrderStatus =
 
 export type Network = string;
 
-export type AdminRole = "owner" | "manager" | "operator";
+export type AdminRole = "owner" | "manager" | "operator" | "kyc_analyst";
 
 export interface AdminStaffAccount {
   id: string;
@@ -101,6 +101,18 @@ export interface CustomerUser {
   fullName: string;
   mobile: string;
   email?: string;
+  aadhaarNumber?: string;
+  aadhaarHash?: string;
+  aadhaarLast4?: string;
+  pan?: string;
+  panHash?: string;
+  digilockerStatus?: "pending" | "verified" | "failed";
+  videoVerificationStatus?: "pending" | "submitted" | "verified" | "rejected";
+  kycStatus?: "under_review" | "verified" | "rejected" | "duplicate_blocked";
+  riskStatus?: "active" | "under_review" | "limited" | "suspended" | "permanently_banned";
+  reviewNote?: string;
+  reviewedByStaffId?: string;
+  reviewedAt?: string;
   createdAt: string;
   lastLoginAt: string;
   status: "active" | "inactive";

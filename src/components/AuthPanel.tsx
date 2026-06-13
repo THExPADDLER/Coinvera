@@ -19,13 +19,15 @@ export function AuthPanel({ onClose, onLogin }: AuthPanelProps) {
     const form = new FormData(event.currentTarget);
     const fullName = String(form.get("fullName") || "Coinvera Customer").trim();
     const mobile = String(form.get("mobile") || "").trim();
+    const aadhaarNumber = String(form.get("aadhaarNumber") || "").trim();
+    const pan = String(form.get("pan") || "").trim();
     const email = String(form.get("email") || "").trim();
     const password = String(form.get("password") || "");
     try {
       setBusy(true);
       const session =
         mode === "signup"
-          ? await signupCustomer({ fullName, mobile, email, password })
+          ? await signupCustomer({ aadhaarNumber, fullName, mobile, email, pan, password })
           : await signinCustomer({ email, password });
       onLogin(session);
       onClose();
@@ -69,6 +71,14 @@ export function AuthPanel({ onClose, onLogin }: AuthPanelProps) {
               <label>
                 Mobile number
                 <input name="mobile" required inputMode="tel" placeholder="Mobile number" />
+              </label>
+              <label>
+                Aadhaar number
+                <input name="aadhaarNumber" required inputMode="numeric" minLength={12} maxLength={12} placeholder="12 digit Aadhaar" />
+              </label>
+              <label>
+                PAN number
+                <input name="pan" required minLength={10} maxLength={10} placeholder="ABCDE1234F" />
               </label>
             </>
           )}

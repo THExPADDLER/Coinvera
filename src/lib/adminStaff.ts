@@ -111,7 +111,7 @@ export function linkStaffAuthUid(accountId: string, authUid: string): AdminStaff
 }
 
 function nextStaffId(role: AdminRole, accounts: AdminStaffAccount[]): string {
-  const prefix = role === "manager" ? "CV-MGR" : role === "operator" ? "CV-STF" : "CV-OWNER";
+  const prefix = role === "manager" ? "CV-MGR" : role === "operator" ? "CV-STF" : role === "kyc_analyst" ? "CV-KYC" : "CV-OWNER";
   const count = accounts.filter((account) => account.staffId.startsWith(prefix)).length + 1;
   return `${prefix}-${String(count).padStart(3, "0")}`;
 }

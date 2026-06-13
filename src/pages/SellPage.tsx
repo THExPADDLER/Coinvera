@@ -3,7 +3,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { ImagePreviewModal } from "../components/ImagePreviewModal";
 import { Toast } from "../components/Toast";
-import { loadCustomerSession } from "../lib/auth";
+import { canCustomerTransact, customerAccessMessage, loadCustomerSession } from "../lib/auth";
 import { calculatePlatformFee, createOrder, loadDeskSettings, loadOrders, money, usdt } from "../lib/desk";
 import { imageFileToCompressedDataUrl, imageSizeLabel } from "../lib/files";
 import { loadCustomerPreferences, savePayoutMethod } from "../lib/preferences";
@@ -56,6 +56,19 @@ export function SellPage() {
           <h2>Login required to sell USDT</h2>
           <p>Please complete simple Login / Signup from the home page first.</p>
           <a className="primaryButton" href="/">Go to Login</a>
+        </section>
+      </main>
+    );
+  }
+  if (!canCustomerTransact(session)) {
+    return (
+      <main className="flowShell">
+        <SellNav />
+        <section className="lockedPanel">
+          <Landmark size={36} />
+          <h2>Account verification required</h2>
+          <p>{customerAccessMessage(session)}</p>
+          <a className="primaryButton" href="/profile">View Profile</a>
         </section>
       </main>
     );

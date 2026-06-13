@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 import { StatusPill } from "../components/StatusPill";
 import { Toast } from "../components/Toast";
-import { loadCustomerUsers } from "../lib/auth";
+import { loadCustomerUsers, updateCustomerCompliance } from "../lib/auth";
 import { addActivityLog, addOrderMessage, assignOrderToStaff, loadActivityLogs, loadDeskSettings, loadOrders, money, saveDeskSettings, statusFlow, updateOrder, updateOrderStatus, usdt } from "../lib/desk";
 import type { AdminActivityLog, AdminRole, AdminStaffAccount, BankAccountOption, BlockchainDeposit, CustomerUser, CustomerWalletBalance, DeskOrder, DeskSettings, OrderStatus, WalletDeposit, WalletLedgerEntry, WalletWithdrawal } from "../lib/types";
 import { ImageCropModal } from "../components/ImageCropModal";
@@ -14,7 +14,7 @@ import { imageFileToCompressedDataUrl, isImageData } from "../lib/files";
 import { cancelWalletSell, cancelWalletWithdrawal, completeWalletSell, completeWalletWithdrawal, creditWalletFromBuy, getWalletDepositHoldUntil, loadWalletDeposits, loadWalletLedger, loadWalletWithdrawals, rejectWalletDeposit, verifyWalletDeposit } from "../lib/wallet";
 import { syncFirebaseToLocal } from "../lib/remoteStore";
 import { deleteReview, loadReviews, saveReview, type CustomerReview } from "../lib/reviews";
-import { maskAddress, maskEmail, maskMobile } from "../lib/mask";
+import { maskAadhaar, maskAddress, maskEmail, maskMobile, maskPan } from "../lib/mask";
 import { linkStaffAuthUid, loadStaffAccounts, setStaffAccountStatus, upsertStaffAccount } from "../lib/adminStaff";
 import { clearAdminSession, loadAdminSession, saveAdminSession } from "../lib/adminSession";
 import { getFirebaseServices } from "../lib/firebase";
@@ -34,10 +34,13 @@ const rolePermissions: Record<AdminRole, {
   canComplete: boolean;
   canChangeStatus: boolean;
   canManageReviews: boolean;
+  canReviewKyc: boolean;
+  canBanCustomers: boolean;
 }> = {
-  owner: { canEditSettings: true, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: true },
-  manager: { canEditSettings: false, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: true },
-  operator: { canEditSettings: false, canExport: false, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: false }
+  owner: { canEditSettings: true, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: true, canReviewKyc: true, canBanCustomers: true },
+  manager: { canEditSettings: false, canExport: true, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: true, canReviewKyc: true, canBanCustomers: true },
+  operator: { canEditSettings: false, canExport: false, canUploadProof: true, canComplete: true, canChangeStatus: true, canManageReviews: false, canReviewKyc: false, canBanCustomers: false },
+  kyc_analyst: { canEditSettings: false, canExport: false, canUploadProof: false, canComplete: false, canChangeStatus: false, canManageReviews: false, canReviewKyc: true, canBanCustomers: false }
 };
 
 type AdminSection = "home" | "orders" | "users" | "settings" | "wallets" | "reviews" | "staff" | "logs";
@@ -67,6 +70,7 @@ export function AdminPage() {
   const activeOrders = useMemo(() => orders.filter((order) => !["Completed", "Cancelled"].includes(order.status)), [orders]);
   const visibleOrders = useMemo(() => {
     if (!adminUser) return [];
+    if (adminUser.role === "kyc_analyst") return [];
     if (adminUser.role !== "operator") return orders;
     return orders.filter((order) => !["Completed", "Cancelled"].includes(order.status) && (!order.assignedStaffId || order.assignedStaffId === adminUser.staffId));
   }, [adminUser, orders]);
@@ -333,6 +337,31 @@ export function AdminPage() {
     setToast(`${user.mobile} copied`);
   }
 
+  function updateCustomerKyc(user: CustomerUser, patch: Partial<Pick<CustomerUser, "kycStatus" | "riskStatus" | "reviewNote" | "status">>) {
+    if (!adminUser || (!permissions.canReviewKyc && !permissions.canBanCustomers)) {
+      setToast("This role cannot update customer verification");
+      return;
+    }
+    if (patch.riskStatus && ["suspended", "permanently_banned", "limited"].includes(patch.riskStatus) && !permissions.canBanCustomers) {
+      setToast("This role cannot restrict or ban customers");
+      return;
+    }
+    const reviewedPatch = {
+      ...patch,
+      reviewedAt: new Date().toISOString(),
+      reviewedByStaffId: adminUser.staffId
+    };
+    setUsers(updateCustomerCompliance(user.id, reviewedPatch));
+    setLogs(addActivityLog({
+      staffId: adminUser.staffId,
+      staffName: adminUser.label,
+      role: adminUser.role,
+      action: "Updated customer compliance",
+      detail: `${user.id}: ${Object.entries(patch).map(([key, value]) => `${key}=${value}`).join(", ")}`
+    }));
+    setToast(`${user.fullName} updated`);
+  }
+
   function updateSettings(next: DeskSettings) {
     if (!permissions.canEditSettings) {
       setToast("This role cannot edit website settings");
@@ -504,11 +533,11 @@ export function AdminPage() {
 
           {activeSection === "home" && (
             <section className="adminMenuGrid">
-              <AdminMenuCard icon={<PackageCheck size={24} />} title="Orders" meta={`${orders.length} orders`} detail="Chats, proof, staff assignment, status, and completion controls." onClick={() => setActiveSection("orders")} />
-              {adminUser.role !== "operator" && <AdminMenuCard icon={<UsersRound size={24} />} title="Customer Users" meta="Customer registry" detail="Customer profiles, order totals, volume, and quick actions." onClick={() => setActiveSection("users")} />}
+              {adminUser.role !== "kyc_analyst" && <AdminMenuCard icon={<PackageCheck size={24} />} title="Orders" meta={`${orders.length} orders`} detail="Chats, proof, staff assignment, status, and completion controls." onClick={() => setActiveSection("orders")} />}
+              {adminUser.role !== "operator" && <AdminMenuCard icon={<UsersRound size={24} />} title={adminUser.role === "kyc_analyst" ? "KYC Queue" : "Customer Users"} meta={adminUser.role === "kyc_analyst" ? "Pending reviews" : "Customer registry"} detail={adminUser.role === "kyc_analyst" ? "Review pending customer verification without payment or settings access." : "Customer profiles, order totals, volume, and quick actions."} onClick={() => setActiveSection("users")} />}
               {adminUser.role === "owner" && <AdminMenuCard icon={<SlidersHorizontal size={24} />} title="Rates & Payment" meta="Editable" detail="Rates, UPI QR, bank accounts, CDM, and blockchain wallets." onClick={() => setActiveSection("settings")} />}
-              {adminUser.role !== "operator" && <AdminMenuCard icon={<Wallet size={24} />} title="Wallet Desk" meta={`${walletDeposits.length} deposits / ${walletWithdrawals.length} withdrawals`} detail="Verify deposits, reject fake transfers, and process customer withdrawals." onClick={() => setActiveSection("wallets")} />}
-              {adminUser.role !== "operator" && <AdminMenuCard icon={<Star size={24} />} title="Reviews" meta={`${reviews.length} reviews`} detail="Add dummy trust reviews and remove outdated customer feedback." onClick={() => setActiveSection("reviews")} />}
+              {adminUser.role !== "operator" && adminUser.role !== "kyc_analyst" && <AdminMenuCard icon={<Wallet size={24} />} title="Wallet Desk" meta={`${walletDeposits.length} deposits / ${walletWithdrawals.length} withdrawals`} detail="Verify deposits, reject fake transfers, and process customer withdrawals." onClick={() => setActiveSection("wallets")} />}
+              {adminUser.role !== "operator" && adminUser.role !== "kyc_analyst" && <AdminMenuCard icon={<Star size={24} />} title="Reviews" meta={`${reviews.length} reviews`} detail="Add dummy trust reviews and remove outdated customer feedback." onClick={() => setActiveSection("reviews")} />}
               {adminUser.role === "owner" && <AdminMenuCard icon={<UserPlus size={24} />} title="Staff Management" meta={`${staffAccounts.length} accounts`} detail="Create manager and staff logins with personal and payment details." onClick={() => setActiveSection("staff")} />}
               {adminUser.role === "owner" && <AdminMenuCard icon={<ClipboardList size={24} />} title="Activity Log" meta={`${logs.length} entries`} detail="Staff logins, assignments, proof views, status changes, and exports." onClick={() => setActiveSection("logs")} />}
             </section>
@@ -527,12 +556,12 @@ export function AdminPage() {
             )
           )}
 
-          {activeSection === "users" && adminUser.role !== "operator" && <CustomerUsersSection users={users} orders={orders} onCopyMobile={copyMobile} />}
-          {activeSection === "wallets" && adminUser.role !== "operator" && <WalletDepositsSection deposits={walletDeposits} withdrawals={walletWithdrawals} onCancelWithdrawal={cancelWithdrawal} onCompleteWithdrawal={completeWithdrawal} onReject={rejectDeposit} onVerify={verifyDeposit} />}
-          {activeSection === "reviews" && adminUser.role !== "operator" && <AdminReviewsSection canManage={permissions.canManageReviews} onDelete={removeAdminReview} onSave={saveAdminReview} reviews={reviews} />}
+          {activeSection === "users" && adminUser.role !== "operator" && <CustomerUsersSection adminUser={adminUser} canBan={permissions.canBanCustomers} canReview={permissions.canReviewKyc} users={users} orders={orders} onCopyMobile={copyMobile} onUpdate={updateCustomerKyc} />}
+          {activeSection === "wallets" && adminUser.role !== "operator" && adminUser.role !== "kyc_analyst" && <WalletDepositsSection deposits={walletDeposits} withdrawals={walletWithdrawals} onCancelWithdrawal={cancelWithdrawal} onCompleteWithdrawal={completeWithdrawal} onReject={rejectDeposit} onVerify={verifyDeposit} />}
+          {activeSection === "reviews" && adminUser.role !== "operator" && adminUser.role !== "kyc_analyst" && <AdminReviewsSection canManage={permissions.canManageReviews} onDelete={removeAdminReview} onSave={saveAdminReview} reviews={reviews} />}
           {activeSection === "staff" && adminUser.role === "owner" && <StaffManagementSection accounts={staffAccounts} onSave={(account) => setStaffAccounts(upsertStaffAccount(account))} onStatus={(account, status) => setStaffAccounts(setStaffAccountStatus(account.id, status))} />}
 
-          {activeSection === "orders" && <section className="ordersSurface">
+          {activeSection === "orders" && adminUser.role !== "kyc_analyst" && <section className="ordersSurface">
             {visibleOrders.length === 0 ? (
               <div className="emptyState">No customer orders yet.</div>
             ) : (
@@ -715,6 +744,17 @@ function AdminMenuCard({
       <small>{detail}</small>
     </button>
   );
+}
+
+function roleLabel(role: AdminRole) {
+  if (role === "owner") return "Owner";
+  if (role === "manager") return "Manager";
+  if (role === "kyc_analyst") return "KYC Analyst";
+  return "Staff";
+}
+
+function statusLabel(value = "") {
+  return value.replaceAll("_", " ");
 }
 
 function SectionBack({ activeSection, onBack }: { activeSection: AdminSection; onBack: () => void }) {
@@ -982,6 +1022,7 @@ function StaffManagementSection({
             <select value={draft.role} onChange={(event) => setField("role", event.target.value as AdminRole)}>
               <option value="operator">Staff</option>
               <option value="manager">Manager</option>
+              <option value="kyc_analyst">KYC Analyst</option>
             </select>
           </label>
           <label>Full name<input value={draft.fullName} onChange={(event) => setField("fullName", event.target.value)} required /></label>
@@ -1004,7 +1045,7 @@ function StaffManagementSection({
             <article className="staffCard" key={account.id}>
               <div>
                 <strong>{account.fullName}</strong>
-                <span>{account.staffId} - {account.role === "operator" ? "staff" : account.role}</span>
+                <span>{account.staffId} - {roleLabel(account.role)}</span>
               </div>
               <div className="staffMetaGrid">
                 <span>Email <strong>{maskEmail(account.email)}</strong></span>
@@ -1032,11 +1073,19 @@ function StaffManagementSection({
 }
 
 function CustomerUsersSection({
+  adminUser,
+  canBan,
+  canReview,
   onCopyMobile,
+  onUpdate,
   orders,
   users
 }: {
+  adminUser: AdminUser;
+  canBan: boolean;
+  canReview: boolean;
   onCopyMobile: (user: CustomerUser) => void;
+  onUpdate: (user: CustomerUser, patch: Partial<Pick<CustomerUser, "kycStatus" | "riskStatus" | "reviewNote" | "status">>) => void;
   orders: DeskOrder[];
   users: CustomerUser[];
 }) {
@@ -1051,12 +1100,14 @@ function CustomerUsersSection({
         mobile,
         createdAt: order.createdAt,
         lastLoginAt: order.createdAt,
+        kycStatus: "verified",
+        riskStatus: "active",
         status: "active"
       });
     }
   });
 
-  const rows = Array.from(userMap.values()).map((user) => {
+  let rows = Array.from(userMap.values()).map((user) => {
     const userOrders = orders.filter((order) => order.customerMobile === user.mobile || order.phone === user.mobile);
     const lastOrder = userOrders[0];
     return {
@@ -1071,13 +1122,16 @@ function CustomerUsersSection({
       usdt: userOrders.reduce((sum, order) => sum + order.amount, 0)
     };
   });
+  if (adminUser.role === "kyc_analyst") {
+    rows = rows.filter((row) => (row.user.kycStatus || "verified") === "under_review");
+  }
 
   return (
     <section className="usersPanel">
       <div className="settingsHead">
         <div>
-          <h2>Customer Users</h2>
-          <p>Firebase-ready user list with order totals, volume, and quick customer actions.</p>
+          <h2>{adminUser.role === "kyc_analyst" ? "KYC Queue" : "Customer Users"}</h2>
+          <p>{adminUser.role === "kyc_analyst" ? "Review pending customers. Payment setup, orders, and logs stay hidden for this role." : "Firebase-ready user list with order totals, volume, KYC status, and risk controls."}</p>
         </div>
         <UsersRound size={28} />
       </div>
@@ -1086,36 +1140,68 @@ function CustomerUsersSection({
         <div className="emptyState">No customer users yet. Signup/login customers will appear here.</div>
       ) : (
         <div className="userCards">
-          {rows.map((row) => (
-            <article className="userCard" key={row.user.id}>
-              <div className="userCardHead">
-                <div>
-                  <strong>{row.user.fullName}</strong>
-                  <span>{row.user.mobile}</span>
-                  {row.user.email && <span>{row.user.email}</span>}
+          {rows.map((row) => {
+            const kycStatus = row.user.kycStatus || "verified";
+            const riskStatus = row.user.riskStatus || "active";
+            const showFullKyc = adminUser.role === "owner";
+            const aadhaarDisplay = showFullKyc ? row.user.aadhaarNumber || "Not added" : maskAadhaar(row.user.aadhaarNumber || row.user.aadhaarLast4);
+            const panDisplay = showFullKyc ? row.user.pan || "Not added" : maskPan(row.user.pan);
+            return (
+              <article className="userCard" key={row.user.id}>
+                <div className="userCardHead">
+                  <div>
+                    <strong>{row.user.fullName}</strong>
+                    <span>{adminUser.role === "owner" ? row.user.mobile : maskMobile(row.user.mobile)}</span>
+                    {row.user.email && <span>{adminUser.role === "owner" ? row.user.email : maskEmail(row.user.email)}</span>}
+                  </div>
+                  <span className="roleBadge customerId">{row.user.id}</span>
                 </div>
-                <span className="roleBadge customerId">{row.user.id}</span>
-              </div>
-              <div className="userStats">
-                <span>Orders <strong>{row.orders}</strong></span>
-                <span>Buy <strong>{row.buyOrders}</strong></span>
-                <span>Sell <strong>{row.sellOrders}</strong></span>
-                <span>Done <strong>{row.completed}</strong></span>
-                <span>Cancel <strong>{row.cancelled}</strong></span>
-                <span>USDT <strong>{usdt(row.usdt)}</strong></span>
-                <span>INR <strong>{money(row.inr)}</strong></span>
-                <span>Last <strong>{new Date(row.lastOrderAt).toLocaleDateString("en-IN")}</strong></span>
-              </div>
-              <div className="actionRow">
-                <button type="button" onClick={() => onCopyMobile(row.user)}>
-                  <Copy size={15} />
-                  Copy mobile
-                </button>
-                <a className="miniLink" href="/orders">View orders</a>
-                <a className="miniLink" href="/messages">Messages</a>
-              </div>
-            </article>
-          ))}
+                <div className="userStats">
+                  <span>KYC <strong>{statusLabel(kycStatus)}</strong></span>
+                  <span>Risk <strong>{statusLabel(riskStatus)}</strong></span>
+                  <span>Aadhaar <strong>{aadhaarDisplay}</strong></span>
+                  <span>PAN <strong>{panDisplay}</strong></span>
+                  <span>Orders <strong>{row.orders}</strong></span>
+                  <span>Buy <strong>{row.buyOrders}</strong></span>
+                  <span>Sell <strong>{row.sellOrders}</strong></span>
+                  <span>Done <strong>{row.completed}</strong></span>
+                  <span>Cancel <strong>{row.cancelled}</strong></span>
+                  <span>USDT <strong>{usdt(row.usdt)}</strong></span>
+                  <span>INR <strong>{money(row.inr)}</strong></span>
+                  <span>Last <strong>{new Date(row.lastOrderAt).toLocaleDateString("en-IN")}</strong></span>
+                </div>
+                {row.user.reviewNote && <p className="readOnlyNote">Review note: {row.user.reviewNote}</p>}
+                {row.user.reviewedByStaffId && <p className="readOnlyNote">Last reviewed by {row.user.reviewedByStaffId}{row.user.reviewedAt ? ` on ${new Date(row.user.reviewedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}` : ""}</p>}
+                <div className="actionRow">
+                  <button type="button" onClick={() => onCopyMobile(row.user)}>
+                    <Copy size={15} />
+                    Copy mobile
+                  </button>
+                  {canReview && (
+                    <>
+                      <button type="button" onClick={() => onUpdate(row.user, { kycStatus: "verified", riskStatus: "active", reviewNote: "KYC verified" })}>
+                        <ShieldCheck size={15} />
+                        Verify KYC
+                      </button>
+                      <button type="button" onClick={() => onUpdate(row.user, { kycStatus: "rejected", reviewNote: "KYC rejected" })}>
+                        Reject KYC
+                      </button>
+                    </>
+                  )}
+                  {canBan && (
+                    <>
+                      <button type="button" onClick={() => onUpdate(row.user, { riskStatus: "suspended", reviewNote: "Suspended by compliance" })}>
+                        Suspend
+                      </button>
+                      <button type="button" onClick={() => onUpdate(row.user, { riskStatus: "permanently_banned", status: "inactive", reviewNote: "Permanently banned by compliance" })}>
+                        Permanent ban
+                      </button>
+                    </>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </section>
