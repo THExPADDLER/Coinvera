@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, limit, orderBy, query, setDoc } from "firebase/firestore";
 import { getFirebaseServices } from "./firebase";
-import type { AdminActivityLog, CustomerPreferences, CustomerUser, DeskOrder, DeskSettings, WalletDeposit, WalletLedgerEntry, WalletWithdrawal } from "./types";
+import type { AdminActivityLog, AdminStaffAccount, CustomerPreferences, CustomerUser, DeskOrder, DeskSettings, WalletDeposit, WalletLedgerEntry, WalletWithdrawal } from "./types";
 
 const root = "CoinveraData";
 const storageKey = "usdt-inr-desk-orders";
@@ -11,6 +11,7 @@ const preferencesStorageKey = "coinvera-customer-preferences";
 const walletDepositsStorageKey = "coinvera-wallet-deposits";
 const walletLedgerStorageKey = "coinvera-wallet-ledger";
 const walletWithdrawalsStorageKey = "coinvera-wallet-withdrawals";
+const staffAccountsStorageKey = "coinvera-admin-staff-accounts";
 
 function safeLocalSet(key: string, value: unknown) {
   try {
@@ -25,7 +26,7 @@ export async function syncFirebaseToLocal(): Promise<void> {
   if (!services) return;
 
   try {
-    const [orderSnap, userSnap, logSnap, settingsSnap, preferenceSnap, depositSnap, ledgerSnap, withdrawalSnap] = await Promise.all([
+    const [orderSnap, userSnap, logSnap, settingsSnap, preferenceSnap, depositSnap, ledgerSnap, withdrawalSnap, staffSnap] = await Promise.all([
       getDocs(query(collection(services.db, root, "orders", "items"), orderBy("createdAt", "desc"), limit(500))),
       getDocs(query(collection(services.db, root, "users", "items"), orderBy("lastLoginAt", "desc"), limit(500))),
       getDocs(query(collection(services.db, root, "activityLogs", "items"), orderBy("at", "desc"), limit(300))),
@@ -33,7 +34,8 @@ export async function syncFirebaseToLocal(): Promise<void> {
       getDocs(query(collection(services.db, root, "customerPreferences", "items"), limit(500))),
       getDocs(query(collection(services.db, root, "walletDeposits", "items"), orderBy("createdAt", "desc"), limit(500))),
       getDocs(query(collection(services.db, root, "walletLedger", "items"), orderBy("at", "desc"), limit(800))),
-      getDocs(query(collection(services.db, root, "walletWithdrawals", "items"), orderBy("createdAt", "desc"), limit(500)))
+      getDocs(query(collection(services.db, root, "walletWithdrawals", "items"), orderBy("createdAt", "desc"), limit(500))),
+      getDocs(query(collection(services.db, root, "staff", "items"), orderBy("updatedAt", "desc"), limit(500)))
     ]);
 
     const orders = orderSnap.docs.map((item) => item.data() as DeskOrder);
@@ -44,6 +46,7 @@ export async function syncFirebaseToLocal(): Promise<void> {
     const deposits = depositSnap.docs.map((item) => item.data() as WalletDeposit);
     const ledger = ledgerSnap.docs.map((item) => item.data() as WalletLedgerEntry);
     const withdrawals = withdrawalSnap.docs.map((item) => item.data() as WalletWithdrawal);
+    const staffAccounts = staffSnap.docs.map((item) => item.data() as AdminStaffAccount);
 
     if (orders.length) safeLocalSet(storageKey, orders);
     if (users.length) safeLocalSet(usersStorageKey, users);
@@ -53,12 +56,14 @@ export async function syncFirebaseToLocal(): Promise<void> {
     if (deposits.length) safeLocalSet(walletDepositsStorageKey, deposits);
     if (ledger.length) safeLocalSet(walletLedgerStorageKey, ledger);
     if (withdrawals.length) safeLocalSet(walletWithdrawalsStorageKey, withdrawals);
+    if (staffAccounts.length) safeLocalSet(staffAccountsStorageKey, staffAccounts);
 
     window.dispatchEvent(new Event("desk-orders-updated"));
     window.dispatchEvent(new Event("coinvera-users-updated"));
     window.dispatchEvent(new Event("coinvera-activity-log-updated"));
     window.dispatchEvent(new Event("coinvera-customer-preferences-updated"));
     window.dispatchEvent(new Event("coinvera-wallet-updated"));
+    window.dispatchEvent(new Event("coinvera-staff-accounts-updated"));
     window.dispatchEvent(new Event("desk-settings-updated"));
   } catch (error) {
     console.warn("Firebase sync failed", error);
@@ -111,4 +116,10 @@ export async function saveWalletWithdrawalsToFirebase(withdrawals: WalletWithdra
   const services = getFirebaseServices();
   if (!services) return;
   await Promise.all(withdrawals.map((withdrawal) => setDoc(doc(services.db, root, "walletWithdrawals", "items", withdrawal.id), withdrawal, { merge: true })));
+}
+
+export async function saveStaffAccountsToFirebase(accounts: AdminStaffAccount[]): Promise<void> {
+  const services = getFirebaseServices();
+  if (!services) return;
+  await Promise.all(accounts.map((account) => setDoc(doc(services.db, root, "staff", "items", account.id), account, { merge: true })));
 }

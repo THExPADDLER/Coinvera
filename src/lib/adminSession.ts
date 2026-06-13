@@ -2,6 +2,7 @@ import { loadStaffAccounts } from "./adminStaff";
 import type { AdminRole } from "./types";
 
 export interface AdminSession {
+  authUid?: string;
   username: string;
   role: AdminRole;
   label: string;
@@ -29,13 +30,15 @@ export function loadAdminSession(): AdminSession | null {
       clearAdminSession();
       return null;
     }
-    const activeAccount = loadStaffAccounts().find((account) => account.staffId === session.staffId && account.username === session.username && account.status === "active");
+    const activeAccount = loadStaffAccounts().find((account) => account.staffId === session.staffId && (!session.authUid || account.authUid === session.authUid || !account.authUid) && account.status === "active");
     if (!activeAccount) {
       clearAdminSession();
       return null;
     }
     return {
       ...session,
+      authUid: session.authUid || activeAccount.authUid,
+      username: activeAccount.username,
       role: activeAccount.role,
       label: activeAccount.fullName || session.label
     };

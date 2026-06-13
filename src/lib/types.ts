@@ -20,6 +20,7 @@ export type AdminRole = "owner" | "manager" | "operator";
 
 export interface AdminStaffAccount {
   id: string;
+  authUid?: string;
   staffId: string;
   role: AdminRole;
   fullName: string;

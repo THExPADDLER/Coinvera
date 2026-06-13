@@ -1,4 +1,5 @@
 import { ArrowLeft, ClipboardList, Copy, Download, Eye, Lock, LogOut, PackageCheck, Plus, RefreshCw, ShieldCheck, SlidersHorizontal, Star, Trash2, UserPlus, UsersRound, Wallet } from "lucide-react";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
@@ -14,10 +15,12 @@ import { cancelWalletSell, cancelWalletWithdrawal, completeWalletSell, completeW
 import { syncFirebaseToLocal } from "../lib/remoteStore";
 import { deleteReview, loadReviews, saveReview, type CustomerReview } from "../lib/reviews";
 import { maskAddress, maskEmail, maskMobile } from "../lib/mask";
-import { loadStaffAccounts, setStaffAccountStatus, upsertStaffAccount } from "../lib/adminStaff";
+import { linkStaffAuthUid, loadStaffAccounts, setStaffAccountStatus, upsertStaffAccount } from "../lib/adminStaff";
 import { clearAdminSession, loadAdminSession, saveAdminSession } from "../lib/adminSession";
+import { getFirebaseServices } from "../lib/firebase";
 
 interface AdminUser {
+  authUid?: string;
   username: string;
   role: AdminRole;
   label: string;
@@ -83,7 +86,7 @@ export function AdminPage() {
   useEffect(() => {
     const savedAdmin = loadAdminSession();
     if (savedAdmin) {
-      setAdminUser({ username: savedAdmin.username, role: savedAdmin.role, label: savedAdmin.label, staffId: savedAdmin.staffId });
+      setAdminUser({ authUid: savedAdmin.authUid, username: savedAdmin.username, role: savedAdmin.role, label: savedAdmin.label, staffId: savedAdmin.staffId });
     }
     setOrders(loadOrders());
     setUsers(loadCustomerUsers());
@@ -129,14 +132,36 @@ export function AdminPage() {
     };
   }, []);
 
-  function unlock() {
-    const found = loadStaffAccounts().find((user) => user.username.trim().toLowerCase() === username.trim().toLowerCase() && user.password === password && user.status === "active");
+  async function unlock() {
+    const identifier = username.trim();
+    const services = getFirebaseServices();
+    let found: AdminStaffAccount | undefined;
+    let authUid: string | undefined;
+
+    if (services && identifier.includes("@")) {
+      try {
+        const credential = await signInWithEmailAndPassword(services.auth, identifier, password);
+        authUid = credential.user.uid;
+        found = loadStaffAccounts().find((user) => user.status === "active" && (user.authUid === authUid || user.email.trim().toLowerCase() === identifier.toLowerCase()));
+        if (found && !found.authUid) {
+          linkStaffAuthUid(found.id, authUid);
+          found = { ...found, authUid };
+          setStaffAccounts(loadStaffAccounts());
+        }
+      } catch (error) {
+        setToast(cleanAdminAuthError(error instanceof Error ? error.message : "Firebase admin sign in failed"));
+        return;
+      }
+    } else {
+      found = loadStaffAccounts().find((user) => user.username.trim().toLowerCase() === identifier.toLowerCase() && user.password === password && user.status === "active");
+    }
+
     if (!found) {
-      setToast("Incorrect admin credentials");
+      setToast(identifier.includes("@") ? "Firebase account is not linked to an active Coinvera staff profile" : "Incorrect admin credentials");
       return;
     }
-    setAdminUser({ username: found.username, role: found.role, label: found.fullName || found.role, staffId: found.staffId });
-    saveAdminSession({ username: found.username, role: found.role, label: found.fullName || found.role, staffId: found.staffId });
+    setAdminUser({ authUid: authUid || found.authUid, username: found.username, role: found.role, label: found.fullName || found.role, staffId: found.staffId });
+    saveAdminSession({ authUid: authUid || found.authUid, username: found.username, role: found.role, label: found.fullName || found.role, staffId: found.staffId });
     setLogs(addActivityLog({ staffId: found.staffId, staffName: found.fullName || found.role, role: found.role, action: "Signed in to admin panel" }));
     setUsername("");
     setPassword("");
@@ -417,12 +442,12 @@ export function AdminPage() {
           className="adminAuth"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!adminUser) unlock();
+            if (!adminUser) void unlock();
           }}
         >
           {!adminUser ? (
             <>
-              <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" />
+              <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username or staff email" />
               <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Password" />
               <button className="primaryButton compact" type="submit">
                 <Lock size={17} />
@@ -1524,6 +1549,13 @@ function daysAgo(days: number) {
 function inputDate(date: Date) {
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return offsetDate.toISOString().slice(0, 10);
+}
+
+function cleanAdminAuthError(message: string) {
+  if (message.includes("auth/invalid-credential") || message.includes("auth/wrong-password")) return "Incorrect staff email or password";
+  if (message.includes("auth/user-not-found")) return "No Firebase staff account found for this email";
+  if (message.includes("auth/too-many-requests")) return "Too many attempts. Please wait and try again";
+  return message;
 }
 
 function periodBounds(from: string, to: string) {

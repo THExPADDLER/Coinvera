@@ -1,4 +1,5 @@
 import type { AdminRole, AdminStaffAccount } from "./types";
+import { saveStaffAccountsToFirebase } from "./remoteStore";
 
 export const staffAccountsStorageKey = "coinvera-admin-staff-accounts";
 
@@ -80,6 +81,7 @@ export function saveStaffAccounts(accounts: AdminStaffAccount[]): AdminStaffAcco
   const defaultOwnerIds = new Set(defaultOwnerAccounts.map((account) => account.id));
   const withoutDefaultOwner = accounts.filter((account) => !defaultOwnerIds.has(account.id));
   localStorage.setItem(staffAccountsStorageKey, JSON.stringify(withoutDefaultOwner));
+  void saveStaffAccountsToFirebase(withoutDefaultOwner);
   window.dispatchEvent(new Event("coinvera-staff-accounts-updated"));
   return loadStaffAccounts();
 }
@@ -100,6 +102,11 @@ export function upsertStaffAccount(input: Omit<AdminStaffAccount, "id" | "staffI
 
 export function setStaffAccountStatus(accountId: string, status: AdminStaffAccount["status"]): AdminStaffAccount[] {
   const accounts = loadStaffAccounts().map((account) => (account.id === accountId ? { ...account, status, updatedAt: new Date().toISOString() } : account));
+  return saveStaffAccounts(accounts);
+}
+
+export function linkStaffAuthUid(accountId: string, authUid: string): AdminStaffAccount[] {
+  const accounts = loadStaffAccounts().map((account) => (account.id === accountId ? { ...account, authUid, updatedAt: new Date().toISOString() } : account));
   return saveStaffAccounts(accounts);
 }
 
